@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MuseWeaver — Live Multi-Agent Code &amp; Math Verification Studio</title>
+<meta name="description" content="MuseWeaver: Live Multi-Agent Code & Math Verification Studio powered by Meta Muse Spark Open via Baseten. Proposer -> Skeptic -> Judge pipeline with real in-browser execution.">
+<meta property="og:title" content="MuseWeaver — Live Multi-Agent Verification Studio">
+<meta property="og:description" content="Powered by meta-models/muse-spark-open-1026 via Baseten. Real deterministic verification in your browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Top Header -->
+<header class="top-header">
+  <div class="header-left">
+    <div class="logo"><span class="logo-mark">M</span> MuseWeaver</div>
+    <span class="model-badge"><span class="dot"></span>meta-models/muse-spark-open-1026 via Baseten</span>
+  </div>
+  <div class="header-center">
+    <div class="pipeline-indicator" id="pipeline-indicator">
+      <div class="pipe-stage" data-stage="proposer"><span class="stage-dot"></span> Proposer</div>
+      <span class="pipe-arrow">&rsaquo;</span>
+      <div class="pipe-stage" data-stage="skeptic"><span class="stage-dot"></span> Skeptic</div>
+      <span class="pipe-arrow">&rsaquo;</span>
+      <div class="pipe-stage" data-stage="judge"><span class="stage-dot"></span> Judge</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-ghost btn-sm" id="api-settings-btn">Live API Settings</button>
+    <button class="btn btn-primary" id="run-pipeline-btn">Run Multi-Agent Verification Pipeline</button>
+  </div>
+</header>
+
+<!-- Scenario Selector -->
+<div class="scenario-bar" id="scenario-bar">
+  <div class="scenario-card active" data-scenario="rate-limiter">
+    <span class="sc-badge badge-concurrency">CONCURRENCY</span>
+    <div class="sc-title">Lock-Free Token Bucket Rate Limiter</div>
+    <div class="sc-desc">Float-drift &amp; burst-boundary race condition audit across 1,000 concurrent requests</div>
+  </div>
+  <div class="scenario-card" data-scenario="quorum">
+    <span class="sc-badge badge-consensus">CONSENSUS</span>
+    <div class="sc-title">Byzantine Quorum Consensus Threshold</div>
+    <div class="sc-desc">Why N=3f fails under equivocation &amp; N=3f+1 quorum intersection proof</div>
+  </div>
+  <div class="scenario-card" data-scenario="battery">
+    <span class="sc-badge badge-optimization">OPTIMIZATION</span>
+    <div class="sc-title">Battery Arbitrage with Degradation</div>
+    <div class="sc-desc">Bellman optimality, greedy counterexample &amp; brute-force cross-check</div>
+  </div>
+  <div class="scenario-card" data-scenario="custom">
+    <span class="sc-badge badge-custom">CUSTOM</span>
+    <div class="sc-title">Custom Task Composer</div>
+    <div class="sc-desc">Write your own verification task — AI analysis + live execution</div>
+  </div>
+</div>
+
+<!-- Custom Task Composer (expandable) -->
+<div class="custom-composer" id="custom-composer">
+  <div class="custom-field">
+    <label>Task Title</label>
+    <input type="text" id="custom-title" placeholder="e.g., Verify my sorting algorithm">
+  </div>
+  <div class="custom-field">
+    <label>Description / Spec</label>
+    <input type="text" id="custom-desc" placeholder="Describe what to verify...">
+  </div>
+  <div class="custom-field full">
+    <label>Code (JavaScript)</label>
+    <textarea id="custom-code" placeholder="// Write or paste your code here&#10;function myFunction(x) {&#10;  return x * 2;&#10;}&#10;// Use assert(condition, &quot;message&quot;) and log(&quot;...&quot;) for tests"></textarea>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;flex-basis:100%">
+    <button class="btn btn-primary" id="custom-run-btn">Run Custom Verification</button>
+    <span id="custom-status"></span>
+  </div>
+</div>
+
+<!-- 3-Column Studio -->
+<div class="studio">
+
+  <!-- Left: Proposer -->
+  <div class="studio-col col-proposer" id="proposer-col">
+    <div class="col-header">
+      <h2><span class="col-num">1</span> <span id="proposer-title">Proposer Agent — muse-spark-open-1026</span></h2>
+    </div>
+    <div class="col-body">
+
+      <!-- Reasoning Trace -->
+      <div class="reasoning-block" id="proposer-reasoning">
+        <div class="reasoning-header">
+          <span>Reasoning Trace (reasoning_content)</span>
+          <button class="reasoning-toggle" id="reasoning-toggle">Expand reasoning trace</button>
+        </div>
+        <div class="reasoning-text collapsed" id="reasoning-text"></div>
+      </div>
+
+      <!-- Code -->
+      <div class="code-block">
+        <div class="code-header">
+          <span>Proposed Algorithm / Code</span>
+          <span style="font-size:10px;color:var(--text-dim)">editable — click Run to re-verify</span>
+        </div>
+        <textarea class="code-textarea" id="proposer-code" spellcheck="false"></textarea>
+        <div class="code-actions">
+          <button class="btn btn-primary btn-sm" id="run-custom-btn">Run Verification Suite (1,000 Fuzz Trials)</button>
+          <button class="btn btn-ghost btn-sm" id="reset-code-btn">Reset</button>
+        </div>
+      </div>
+
+      <!-- Invariants -->
+      <div class="invariants-block">
+        <div class="invariants-header">Extracted Formal Invariants</div>
+        <div id="proposer-invariants"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Center: Skeptic & Execution -->
+  <div class="studio-col col-skeptic" id="skeptic-col">
+    <div class="col-header">
+      <h2><span class="col-num">2</span> Adversarial Skeptic &amp; Live Execution Sandbox</h2>
+      <button class="btn btn-ghost btn-sm" id="compare-toggle">Compare Naive vs Verified</button>
+    </div>
+    <div class="col-body">
+
+      <!-- Critique -->
+      <div class="critique-block" id="skeptic-critique"></div>
+
+      <!-- Test Cases -->
+      <div class="test-cases-block">
+        <div class="test-cases-header">Generated Boundary &amp; Fuzz Test Cases</div>
+        <div id="skeptic-tests"></div>
+      </div>
+
+      <!-- Live Execution -->
+      <div class="execution-block">
+        <div class="execution-header">
+          <span>Real In-Browser Execution Engine</span>
+          <div class="fuzz-controls">
+            <input type="range" id="fuzz-trials-input" min="100" max="5000" step="100" value="1000">
+            <label id="fuzz-trials-label">1000 trials</label>
+            <button class="btn btn-primary btn-sm" id="rerun-btn">Re-run</button>
+          </div>
+        </div>
+        <div class="execution-metrics" id="execution-metrics"></div>
+        <div class="execution-results" id="execution-results">
+          <div class="empty-state">Click <strong>Run Multi-Agent Verification Pipeline</strong> to execute verification live in your browser.</div>
+        </div>
+        <div class="execution-logs" id="execution-logs"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Right: Judge & DAG -->
+  <div class="studio-col col-judge" id="judge-col">
+    <div class="col-header">
+      <h2><span class="col-num">3</span> Formal Judge Synthesis &amp; Proof DAG</h2>
+    </div>
+    <div class="col-body">
+
+      <!-- DAG -->
+      <div class="dag-container">
+        <div class="dag-header">Interactive Proof &amp; Dependency DAG</div>
+        <div id="proof-dag"></div>
+        <div class="dag-detail" id="dag-detail" style="display:none"></div>
+      </div>
+
+      <!-- Verdict -->
+      <div id="judge-verdict">
+        <div class="empty-state">Run the pipeline to generate the formal verdict.</div>
+      </div>
+
+      <!-- Export -->
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-primary" id="export-report-btn" style="flex:1">Export Verification Report</button>
+        <button class="btn btn-ghost" id="permalink-btn">Copy Shareable Permalink</button>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<footer class="app-footer">
+  MuseWeaver — Built for the Meta Global AI Developer Hackathon on Cerebral Valley &middot;
+  Model: <code>meta-models/muse-spark-open-1026</code> via Baseten &middot;
+  <a href="https://github.com/aarivpatel/museweaver" target="_blank" rel="noopener">GitHub</a> &middot;
+  Runs 100% on GitHub Pages &amp; <code>python3 -m http.server</code> with zero console errors
+</footer>
+
+<!-- API Settings Modal -->
+<div class="api-modal" id="api-modal">
+  <div class="api-modal-card">
+    <div class="api-modal-header">
+      <h3>Live API Settings</h3>
+      <button class="api-modal-close" id="api-modal-close">&times;</button>
+    </div>
+    <div class="api-modal-body">
+      <label>
+        Baseten API Key
+        <input type="password" id="api-key-input" placeholder="sk-... (stored locally in localStorage)">
+        <span class="hint">Get your key at baseten.co — or leave empty to use built-in verified traces + live execution sandbox.</span>
+      </label>
+      <label>
+        Inference URL
+        <input type="text" id="api-url-input" placeholder="https://inference.baseten.co/v1/chat/completions">
+        <span class="hint">Use <code>http://localhost:20128/v1/chat/completions</code> for local OmniRoute proxy.</span>
+      </label>
+      <div id="api-modal-status"></div>
+    </div>
+    <div class="api-modal-footer">
+      <button class="btn btn-ghost" id="api-modal-test">Test Connection</button>
+      <button class="btn btn-primary" id="api-modal-save">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/captured-traces.js"></script>
+<script src="js/verifier.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
