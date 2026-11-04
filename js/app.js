@@ -1,5 +1,5 @@
 // ============================================================
-// MuseWeaver — UI Controller
+// MuseWeaver - UI Controller
 // Wires scenario selector, pipeline animation, DAG, modals,
 // live API, comparison toggle, and report export.
 // ============================================================
@@ -150,7 +150,7 @@ function loadProposerColumn(id) {
 
   // Title
   const titleEl = document.getElementById("proposer-title");
-  if (titleEl) titleEl.textContent = `1. Proposer Agent — ${trace.title}`;
+  if (titleEl) titleEl.textContent = `1. Proposer Agent - ${trace.title}`;
 
   // Skeptic critique
   const skepticEl = document.getElementById("skeptic-critique");
@@ -184,7 +184,7 @@ function resetJudgeColumn() {
 }
 
 // ============================================================
-// Pipeline — Animated Step-by-Step + Real Execution
+// Pipeline - Animated Step-by-Step + Real Execution
 // ============================================================
 function initPipelineButton() {
   const btn = document.getElementById("run-pipeline-btn");
@@ -209,7 +209,7 @@ async function runPipeline() {
     await sleep(600);
     updatePipelineIndicator("proposer", false);
 
-    // Stage 2: Skeptic — generate tests + show execution
+    // Stage 2: Skeptic - generate tests + show execution
     updatePipelineIndicator("skeptic", true);
     highlightColumn("skeptic-col", true);
     await sleep(400);
@@ -221,7 +221,7 @@ async function runPipeline() {
     renderExecutionResults(result);
     updatePipelineIndicator("skeptic", false);
 
-    // Stage 3: Judge — synthesis
+    // Stage 3: Judge - synthesis
     updatePipelineIndicator("judge", true);
     highlightColumn("judge-col", true);
     await sleep(500);
@@ -304,7 +304,7 @@ function renderExecutionResults(result) {
   } else if (result.summary.failed === 0) {
     banner = `<div class="verified-banner">
       <span class="ce-icon">&#10003;</span>
-      <span class="ce-text"><strong>All invariants verified</strong> — no counterexamples in ${result.summary.total} checks.</span>
+      <span class="ce-text"><strong>All invariants verified</strong> - no counterexamples in ${result.summary.total} checks.</span>
     </div>`;
   }
 
@@ -350,7 +350,7 @@ function renderJudgeVerdict(result) {
       <div class="verdict-text">${verdictText}</div>
       <div class="verdict-detail">
         ${result.summary.passed}/${result.summary.total} checks passed in ${result.elapsed}ms<br>
-        ${result.counterexample ? `<span class="verdict-ce">${escapeHtml(result.counterexample)}</span>` : "No counterexamples — all invariants hold."}
+        ${result.counterexample ? `<span class="verdict-ce">${escapeHtml(result.counterexample)}</span>` : "No counterexamples - all invariants hold."}
       </div>
     </div>
     <div class="verdict-invariants">
@@ -396,14 +396,14 @@ function renderComparison(result) {
         <div class="compare-header"><span class="compare-dot naive-dot"></span> Naive (Buggy)</div>
         <div class="compare-body">
           ${naiveBugs > 0
-            ? `<div class="compare-bug">&#10007; Bug caught — counterexample found</div><div class="compare-detail">${escapeHtml(result.counterexample || "Invariant violated")}</div>`
+            ? `<div class="compare-bug">&#10007; Bug caught - counterexample found</div><div class="compare-detail">${escapeHtml(result.counterexample || "Invariant violated")}</div>`
             : `<div class="compare-ok">No bug detected in this run</div>`}
         </div>
       </div>
       <div class="compare-card verified">
         <div class="compare-header"><span class="compare-dot verified-dot"></span> MuseWeaver Verified</div>
         <div class="compare-body">
-          <div class="compare-ok">&#10003; All invariants hold — ${result.summary.passed}/${result.summary.total} passed</div>
+          <div class="compare-ok">&#10003; All invariants hold - ${result.summary.passed}/${result.summary.total} passed</div>
           <div class="compare-detail">${result.elapsed}ms &middot; ${result.summary.total} checks</div>
         </div>
       </div>
@@ -525,7 +525,7 @@ function renderDag(scenarioId, result) {
     if (dagSelectedNode) {
       const node = nodes.find(n => n.id === dagSelectedNode);
       detailEl.innerHTML = `<div class="dag-detail-card">
-        <strong>${escapeHtml(node.label)}</strong> — ${escapeHtml(node.sub)}
+        <strong>${escapeHtml(node.label)}</strong> - ${escapeHtml(node.sub)}
         ${node.invariant ? `<br><span class="dag-inv-tag">${node.invariant}</span> linked to invariant verification` : ""}
       </div>`;
       detailEl.style.display = "block";
@@ -629,7 +629,7 @@ function exportReport() {
 
   const md = `# MuseWeaver Verification Report
 
-**Scenario:** ${scenario.label} — ${scenario.desc}
+**Scenario:** ${scenario.label} - ${scenario.desc}
 **Model:** meta-models/muse-spark-open-1026 via Baseten
 **Generated:** ${new Date().toISOString()}
 **Trials:** ${lastResult.summary.total} checks in ${lastResult.elapsed}ms
@@ -637,11 +637,11 @@ function exportReport() {
 
 ## Invariants
 
-${trace.proposer.invariants.map(inv => `- **${inv.id} ${inv.name}:** \`${inv.formula}\` — ${inv.status}`).join("\n")}
+${trace.proposer.invariants.map(inv => `- **${inv.id} ${inv.name}:** \`${inv.formula}\` - ${inv.status}`).join("\n")}
 
 ## Execution Log
 
-${lastResult.logs.map(l => `- **${l.test}** — ${l.pass ? "PASS" : "FAIL"}${l.detail ? ` — ${l.detail}` : ""}`).join("\n")}
+${lastResult.logs.map(l => `- **${l.test}** - ${l.pass ? "PASS" : "FAIL"}${l.detail ? ` - ${l.detail}` : ""}`).join("\n")}
 
 ${lastResult.counterexample ? `## Counterexample\n\n\`\`\`\n${lastResult.counterexample}\n\`\`\`\n` : ""}
 
@@ -655,7 +655,7 @@ All verification runs deterministically in-browser via \`js/verifier.js\` with s
 Re-run with \`runVerification("${currentScenario}", { trials: 1000, seed: 42 })\` in the console.
 
 ---
-*Generated by MuseWeaver — Live Multi-Agent Code & Math Verification Studio*
+*Generated by MuseWeaver - Live Multi-Agent Code & Math Verification Studio*
 *Powered by meta-models/muse-spark-open-1026 on Baseten*
 `;
 
@@ -698,7 +698,7 @@ function initPermalink() {
 }
 
 // ============================================================
-// Code Editing — Live Re-execution
+// Code Editing - Live Re-execution
 // ============================================================
 function initCodeEdit() {
   const codeEl = document.getElementById("proposer-code");
@@ -786,7 +786,7 @@ function initCustomComposer() {
       if (code) {
         const execResult = runCustomCode(code, []);
         renderCustomExecution(execResult, null);
-        if (statusEl) { statusEl.textContent = execResult.error ? `Error: ${execResult.error}` : "Executed locally (no API key — add one in Live API Settings for AI analysis)."; statusEl.className = execResult.error ? "api-status err" : "api-status ok"; }
+        if (statusEl) { statusEl.textContent = execResult.error ? `Error: ${execResult.error}` : "Executed locally (no API key - add one in Live API Settings for AI analysis)."; statusEl.className = execResult.error ? "api-status err" : "api-status ok"; }
       } else {
         if (statusEl) { statusEl.textContent = "Add code to execute, or configure an API key for AI-powered analysis."; statusEl.className = "api-status err"; }
       }

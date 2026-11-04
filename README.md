@@ -1,10 +1,10 @@
-# MuseWeaver — Live Multi-Agent Code & Math Verification Studio
+# MuseWeaver - Live Multi-Agent Code & Math Verification Studio
 
 > **Powered by `meta-models/muse-spark-open-1026` via Baseten**
 
 MuseWeaver is an award-crafted interactive web application that demonstrates a **Proposer → Skeptic → Judge** multi-agent verification loop, all running live in the browser with real deterministic execution and zero fake telemetry.
 
-Built for the **Meta Global AI Developer Hackathon on Cerebral Valley** — Indie Developer Track + Best Build on Meta Open Weight Models + Best Agentic Use-Case.
+Built for the **Meta Global AI Developer Hackathon on Cerebral Valley** - Indie Developer Track + Best Build on Meta Open Weight Models + Best Agentic Use-Case.
 
 ---
 
@@ -18,7 +18,7 @@ MuseWeaver takes hard computer science problems and runs them through a three-ag
 | **2. Skeptic** | `muse-spark-open-1026` | Adversarially critiques the proposal and generates boundary/fuzz tests |
 | **3. Judge** | Deterministic engine | Executes 1,000 fuzz trials in-browser and synthesizes a formal verdict |
 
-The entire verification suite — including property-based fuzzing, counterexample search, and invariant checking — runs **for real** in the browser via `performance.now()` timing and real JavaScript assertions. No mocks, no simulated results.
+The entire verification suite - including property-based fuzzing, counterexample search, and invariant checking - runs **for real** in the browser via `performance.now()` timing and real JavaScript assertions. No mocks, no simulated results.
 
 ---
 
@@ -27,7 +27,7 @@ The entire verification suite — including property-based fuzzing, counterexamp
 ### 1. Lock-Free Token Bucket Rate Limiter
 **Badge:** `CONCURRENCY`
 
-A naive float-based token bucket accumulates IEEE 754 rounding errors and mishandles burst-boundary timing. MuseWeaver's verified fix uses **integer microsecond CAS** — zero drift, zero races.
+A naive float-based token bucket accumulates IEEE 754 rounding errors and mishandles burst-boundary timing. MuseWeaver's verified fix uses **integer microsecond CAS** - zero drift, zero races.
 
 - **Invariants:** Capacity Bound (`microTokens ≤ C·10⁶`), Conservation, Rate Fidelity
 - **Bug caught:** Float drift of ~1 micro-token per burst window
@@ -54,19 +54,19 @@ A greedy strategy looks locally optimal but is globally suboptimal. The verified
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  index.html  — Dark studio UI (#0B0F17, Space Grotesk)  │
-│  styles.css  — Responsive, high-contrast, micro-anims   │
+│  index.html  - Dark studio UI (#0B0F17, Space Grotesk)  │
+│  styles.css  - Responsive, high-contrast, micro-anims   │
 ├─────────────────────────────────────────────────────────┤
 │  js/captured-traces.js                                  │
 │    • Real reasoning_content traces from muse-spark-open  │
 │    • Live API client (Baseten + localhost:20128 proxy)  │
 ├─────────────────────────────────────────────────────────┤
-│  js/verifier.js  — Deterministic execution engine        │
+│  js/verifier.js  - Deterministic execution engine        │
 │    • Naive (buggy) vs Verified implementations           │
 │    • Property-based fuzzing with seeded PRNG             │
 │    • Real counterexample search                          │
 ├─────────────────────────────────────────────────────────┤
-│  js/app.js  — UI controller                             │
+│  js/app.js  - UI controller                             │
 │    • Scenario switching, pipeline animation               │
 │    • Interactive SVG Proof DAG                           │
 │    • Report export, permalink, live API modal            │
@@ -75,13 +75,13 @@ A greedy strategy looks locally optimal but is globally suboptimal. The verified
 
 ### How `muse-spark-open-1026` Powers the Loop
 
-1. **Proposer** — The model's `reasoning_content` chain-of-thought is captured verbatim and displayed as an inspectable trace. It derives the algorithm, identifies the bug class, and extracts formal invariants `I₁, I₂, I₃`.
+1. **Proposer** - The model's `reasoning_content` chain-of-thought is captured verbatim and displayed as an inspectable trace. It derives the algorithm, identifies the bug class, and extracts formal invariants `I₁, I₂, I₃`.
 
-2. **Skeptic** — A second call (or the same trace's adversarial section) generates boundary test cases and fuzz strategies targeting the exact vulnerability.
+2. **Skeptic** - A second call (or the same trace's adversarial section) generates boundary test cases and fuzz strategies targeting the exact vulnerability.
 
-3. **Judge** — Deterministic synthesis: the in-browser engine runs both implementations, checks every invariant, searches for counterexamples, and renders the verdict + Proof DAG.
+3. **Judge** - Deterministic synthesis: the in-browser engine runs both implementations, checks every invariant, searches for counterexamples, and renders the verdict + Proof DAG.
 
-When a **Baseten API key** is configured (via the Live API Settings modal), the app can call `https://inference.baseten.co/v1/chat/completions` live. A local proxy at `http://localhost:20128/v1/chat/completions` is also supported. Without a key, the app runs fully offline using captured traces + the live execution sandbox — every button still works.
+When a **Baseten API key** is configured (via the Live API Settings modal), the app can call `https://inference.baseten.co/v1/chat/completions` live. A local proxy at `http://localhost:20128/v1/chat/completions` is also supported. Without a key, the app runs fully offline using captured traces + the live execution sandbox - every button still works.
 
 ---
 
@@ -150,4 +150,4 @@ runVerification("battery", { trials: 1000, seed: 42 })
 
 ## License
 
-MIT — Built with care for the Meta Global AI Developer Hackathon.
+MIT - Built with care for the Meta Global AI Developer Hackathon.

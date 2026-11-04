@@ -1,5 +1,5 @@
 // ============================================================
-// MuseWeaver — Captured Traces & Live API Client
+// MuseWeaver - Captured Traces & Live API Client
 // Real reasoning traces from meta-models/muse-spark-open-1026
 // via Baseten (https://inference.baseten.co/v1/chat/completions)
 // Local proxy: http://localhost:20128/v1/chat/completions
@@ -28,14 +28,14 @@ This introduces two bugs:
   (a) Floating-point drift: repeated fractional additions accumulate IEEE 754 rounding errors. Over millions of requests, the bucket state diverges from ground truth by O(n * epsilon).
   (b) Burst-boundary race: when elapsed time spans a burst window boundary, the float division can yield 0.999... instead of 1.0, causing a valid request to be denied (or vice versa with ceil).
 
-**Step 3: The Verified Fix — Integer Microsecond CAS**
+**Step 3: The Verified Fix - Integer Microsecond CAS**
 We eliminate floats entirely:
 - Store time in integer microseconds (Date.now() * 1000 or performance.now() * 1000)
 - Store tokens as integer micro-tokens: 1 token = 1_000_000 micro-tokens
 - Refill: microTokens += elapsedMicros * ratePerSec  (all integers, no drift)
 - Capacity check: microTokens = min(microTokens, capacity * 1_000_000)
 - Consume: if microTokens >= 1_000_000, subtract and allow
-- For concurrency, use a CAS loop (compare-and-swap via Atomics or optimistic retry) — no locks needed.
+- For concurrency, use a CAS loop (compare-and-swap via Atomics or optimistic retry) - no locks needed.
 
 **Step 4: Formal Invariants**
 I_1 (Capacity Bound): microTokens <= capacity * 1_000_000 at all times.
@@ -44,18 +44,18 @@ I_3 (Rate Fidelity): over any window W, tokens granted <= ceil(W * rate) + burst
 
 Verification plan: simulate 1,000 concurrent requests with interleaved refill windows, assert all three invariants, and compare naive (float) vs verified (integer CAS) outcomes.`,
 
-      code: `// MuseWeaver Verified — Integer Microsecond CAS Token Bucket
+      code: `// MuseWeaver Verified - Integer Microsecond CAS Token Bucket
 class VerifiedTokenBucket {
   constructor(capacity, refillPerSec) {
     this.capacity = capacity;
     this.refillPerSec = refillPerSec;
-    // All state in integer micro-units — zero float drift
+    // All state in integer micro-units - zero float drift
     this.microTokens = capacity * 1_000_000;
     this.lastRefillMicros = 0; // set on first request
     this._initialized = false;
   }
 
-  // Deterministic refill — caller passes current time in microseconds
+  // Deterministic refill - caller passes current time in microseconds
   refill(nowMicros) {
     if (!this._initialized) {
       this.lastRefillMicros = nowMicros;
@@ -116,8 +116,8 @@ class VerifiedTokenBucket {
     skeptic: {
       critique: `Adversarial audit of the naive float-based bucket:
 
-1. FLOAT-DRIFT: After 500 refills of 0.1 tokens each, naive accumulates 49.99999999999998 instead of 50.0 — off-by-one denial at burst boundary.
-2. BURST-BOUNDARY RACE: Two requests at t=999ms and t=1001ms straddling a 1s window — naive float computes 0.002*rate=0.02 tokens but integer refill shows 2000 micros * rate = exact.
+1. FLOAT-DRIFT: After 500 refills of 0.1 tokens each, naive accumulates 49.99999999999998 instead of 50.0 - off-by-one denial at burst boundary.
+2. BURST-BOUNDARY RACE: Two requests at t=999ms and t=1001ms straddling a 1s window - naive float computes 0.002*rate=0.02 tokens but integer refill shows 2000 micros * rate = exact.
 3. CONCURRENCY: Without CAS, interleaved refill+consume loses tokens (read-modify-write race).
 
 Generated fuzz strategies:
@@ -126,10 +126,10 @@ Generated fuzz strategies:
 - Interleaved CAS: 1,000 concurrent tryConsume with random jitter`,
       testCases: [
         { name: "burst_boundary_exact", desc: "10 requests at t=0 then 10 at t=1000ms with C=10 R=10" },
-        { name: "float_drift_accumulation", desc: "1000 refills of 0.3 tokens — check integer exactness" },
+        { name: "float_drift_accumulation", desc: "1000 refills of 0.3 tokens - check integer exactness" },
         { name: "concurrent_cas_contention", desc: "1000 concurrent requests, 100ms apart, C=100 R=50" },
         { name: "zero_elapsed_idempotent", desc: "Repeated calls at same timestamp must not double-refill" },
-        { name: "capacity_clamp", desc: "Idle for 10s with C=5 R=100 — must cap at 5, not overflow" }
+        { name: "capacity_clamp", desc: "Idle for 10s with C=5 R=100 - must cap at 5, not overflow" }
       ]
     }
   },
@@ -144,7 +144,7 @@ Generated fuzz strategies:
       reasoning: `We need to prove why N=3f fails and N=3f+1 is necessary for Byzantine fault tolerance. Let me work through this formally.
 
 **Step 1: Model**
-N nodes, f Byzantine (arbitrary behavior including equivocation — sending different values to different peers). Honest nodes follow protocol. We need:
+N nodes, f Byzantine (arbitrary behavior including equivocation - sending different values to different peers). Honest nodes follow protocol. We need:
 - Safety: two honest nodes never commit conflicting values.
 - Liveness: progress when <= f faults.
 
@@ -168,9 +168,9 @@ N=7, f=2: q=5. Any two quorums of 5 from 7 intersect in at least 3 nodes. Even i
 **Step 5: Invariants**
 I_1 (Quorum Honest Intersection): |Q1 cap Q2 cap Honest| >= 1 for all valid quorum pairs.
 I_2 (No Split-Brain): No two conflicting commits under <= f Byzantine faults.
-I_3 (Threshold Minimality): N=3f+1 is tight — N=3f admits a counterexample partition.`,
+I_3 (Threshold Minimality): N=3f+1 is tight - N=3f admits a counterexample partition.`,
 
-      code: `// MuseWeaver Verified — Byzantine Quorum Checker (N=3f+1)
+      code: `// MuseWeaver Verified - Byzantine Quorum Checker (N=3f+1)
 class QuorumVerifier {
   constructor(N, f) {
     this.N = N;
@@ -267,18 +267,18 @@ class QuorumVerifier {
     skeptic: {
       critique: `Adversarial audit of N=3f quorum assumption:
 
-1. EQUIVOCATION MATRIX: With N=6,f=2, Byzantine nodes b1,b2 send conflicting quorum certificates to partitions P1={0,1} and P2={2,3}. Each partition sees |P_i|+|Byz|=4 nodes agreeing — appears valid under naive threshold.
+1. EQUIVOCATION MATRIX: With N=6,f=2, Byzantine nodes b1,b2 send conflicting quorum certificates to partitions P1={0,1} and P2={2,3}. Each partition sees |P_i|+|Byz|=4 nodes agreeing - appears valid under naive threshold.
 
-2. PARTITION ENUMERATION: Brute-force all C(6,4)=15 possible quorums of size 4 from N=6 — find pairs with honest intersection = 0 (split-brain exists).
+2. PARTITION ENUMERATION: Brute-force all C(6,4)=15 possible quorums of size 4 from N=6 - find pairs with honest intersection = 0 (split-brain exists).
 
-3. BOUNDARY f VALUES: Test f=1..5 for both N=3f and N=3f+1 configs — verify the phase transition at exactly 3f+1.
+3. BOUNDARY f VALUES: Test f=1..5 for both N=3f and N=3f+1 configs - verify the phase transition at exactly 3f+1.
 
 Fuzz: enumerate all quorum pairs for N=4..10, all f values, check honest intersection invariant.`,
       testCases: [
-        { name: "n3f_counterexample", desc: "N=6,f=2 — find quorum pair with zero honest intersection" },
-        { name: "n3f1_verified", desc: "N=7,f=2 — all quorum pairs have >=1 honest in intersection" },
+        { name: "n3f_counterexample", desc: "N=6,f=2 - find quorum pair with zero honest intersection" },
+        { name: "n3f1_verified", desc: "N=7,f=2 - all quorum pairs have >=1 honest in intersection" },
         { name: "equivocation_matrix_3f", desc: "Construct explicit equivocation attack matrix for N=6,f=2" },
-        { name: "threshold_sweep", desc: "Sweep N=4..13, f=1..4 — verify N>=3f+1 boundary" },
+        { name: "threshold_sweep", desc: "Sweep N=4..13, f=1..4 - verify N>=3f+1 boundary" },
         { name: "quorum_size_formula", desc: "Verify q=ceil((N+f+1)/2) is minimal safe quorum size" }
       ]
     }
@@ -299,7 +299,7 @@ Fuzz: enumerate all quorum pairs for N=4..10, all f values, check honest interse
 - Degradation cost d per kWh cycled (throughput penalty)
 - State: soc[t] = state of charge at time t (0 <= soc <= C)
 - Actions: charge (+), discharge (-), hold (0), bounded by R and soc limits
-- Reward at step t: if discharge x kWh, profit = x * p[t] - x * d; if charge x, cost = x * p[t] + x * d (degradation on both directions, or just discharge — we model both)
+- Reward at step t: if discharge x kWh, profit = x * p[t] - x * d; if charge x, cost = x * p[t] + x * d (degradation on both directions, or just discharge - we model both)
 
 Simplified: action a in [-R, R], soc' = soc + a, profit(a, p[t]) = -a * p[t] - |a| * d  (negative a = discharge = positive profit when p high)
 
@@ -311,15 +311,15 @@ We discretize soc into integer kWh levels 0..C.
 **Step 3: Greedy Suboptimality Counterexample**
 Price curve: [1, 10, 2, 9] with C=2, R=1, d=0.5
 Greedy: at t=0 price=1 (low), charge 1 (profit=-1.5). At t=1 price=10 (high), discharge 1 (profit=9.5). Net so far: 8.0. At t=2 price=2, charge 1 (profit=-2.5). At t=3 price=9, discharge 1 (profit=8.5). Greedy total: 14.0.
-Optimal DP: charge 1 at t=0, HOLD at t=1 (save for later? No — actually discharge at t=1 is optimal here). Let me construct a better counterexample:
-Price: [3, 1, 10, 2] C=1 R=1 d=1.0 — Greedy at t=0 sees price 3, discharges (profit 3-1=2), empty at t=1 can't charge. DP holds at t=0, charges at t=1 (cost 1+1=2), discharges at t=2 (profit 10-1=9), net 7 > greedy 2. Counterexample found!
+Optimal DP: charge 1 at t=0, HOLD at t=1 (save for later? No - actually discharge at t=1 is optimal here). Let me construct a better counterexample:
+Price: [3, 1, 10, 2] C=1 R=1 d=1.0 - Greedy at t=0 sees price 3, discharges (profit 3-1=2), empty at t=1 can't charge. DP holds at t=0, charges at t=1 (cost 1+1=2), discharges at t=2 (profit 10-1=9), net 7 > greedy 2. Counterexample found!
 
 **Step 4: Invariants**
 I_1 (Bellman Optimality): V[t][s] = max_a { profit(a) + V[t+1][s+a] } (principle of optimality).
 I_2 (SOC Bounds): 0 <= soc[t] <= C for all t in optimal trajectory.
 I_3 (Brute-Force Agreement): DP optimum equals brute-force enumeration over all action sequences.`,
 
-      code: `// MuseWeaver Verified — Battery Arbitrage Bellman DP
+      code: `// MuseWeaver Verified - Battery Arbitrage Bellman DP
 class BatteryArbitrage {
   constructor(capacity, rate, degradation) {
     this.C = capacity;       // max charge level (integer kWh)
@@ -335,7 +335,7 @@ class BatteryArbitrage {
     return -a * price - Math.abs(a) * this.d;
   }
 
-  // Solve via Bellman DP — returns { maxProfit, V table, optimal path }
+  // Solve via Bellman DP - returns { maxProfit, V table, optimal path }
   solve(prices, initSoc = 0) {
     const T = prices.length;
     // V[t][s] = max profit from time t with soc=s to end
@@ -371,7 +371,7 @@ class BatteryArbitrage {
     return { maxProfit: V[0][initSoc], V, choice, path };
   }
 
-  // Brute-force enumeration for verification (exponential — only for small T)
+  // Brute-force enumeration for verification (exponential - only for small T)
   bruteForce(prices, initSoc = 0) {
     const T = prices.length;
     let bestProfit = -Infinity;
@@ -425,26 +425,26 @@ class BatteryArbitrage {
     skeptic: {
       critique: `Adversarial audit of greedy and naive DP:
 
-1. GREEDY COUNTEREXAMPLE: Price=[3,1,10,2] C=1 R=1 d=1.0 — greedy discharges at t=0 for immediate profit 2, leaving nothing for the t=1->t=2 arbitrage (profit 7). DP correctly holds, netting 7 vs greedy 2.
+1. GREEDY COUNTEREXAMPLE: Price=[3,1,10,2] C=1 R=1 d=1.0 - greedy discharges at t=0 for immediate profit 2, leaving nothing for the t=1->t=2 arbitrage (profit 7). DP correctly holds, netting 7 vs greedy 2.
 
-2. BELLMAN VERIFICATION: For every (t,s) in the DP table, verify V[t][s] = max_a { profit(a,p[t]) + V[t+1][s+a] } by recomputing — catches off-by-one in recurrence.
+2. BELLMAN VERIFICATION: For every (t,s) in the DP table, verify V[t][s] = max_a { profit(a,p[t]) + V[t+1][s+a] } by recomputing - catches off-by-one in recurrence.
 
 3. BRUTE-FORCE CROSS-CHECK: For T<=8, enumerate all (2R+1)^T action sequences and confirm DP optimum matches global optimum exactly.
 
-4. FUZZ: 1000 random price curves (uniform [0.5, 15.0]), random C/R/d configs — DP vs brute-force agreement on every trial.`,
+4. FUZZ: 1000 random price curves (uniform [0.5, 15.0]), random C/R/d configs - DP vs brute-force agreement on every trial.`,
       testCases: [
-        { name: "greedy_counterexample", desc: "Price [3,1,10,2] C=1 R=1 d=1 — greedy=2, DP=7" },
+        { name: "greedy_counterexample", desc: "Price [3,1,10,2] C=1 R=1 d=1 - greedy=2, DP=7" },
         { name: "bellman_recurrence", desc: "Verify V[t][s]=max_a{profit+V[t+1]} for all t,s" },
         { name: "brute_force_small", desc: "T=6 exhaustive enumeration vs DP optimum" },
         { name: "soc_bounds", desc: "Optimal path never violates 0<=soc<=C" },
-        { name: "fuzz_random_curves", desc: "1000 random price curves — DP==brute agreement" }
+        { name: "fuzz_random_curves", desc: "1000 random price curves - DP==brute agreement" }
       ]
     }
   }
 };
 
 // ============================================================
-// Live API Client — Baseten + Local OmniRoute Proxy
+// Live API Client - Baseten + Local OmniRoute Proxy
 // ============================================================
 const API_CONFIG = {
   basetenUrl: "https://inference.baseten.co/v1/chat/completions",
