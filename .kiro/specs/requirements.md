@@ -1,12 +1,18 @@
-# MuseWeaver - Requirements Specification (Kiro Spec-Driven Architecture)
+# MuseWeaver verification requirements
 
-## 1. Overview
-MuseWeaver is a multi-agent code & formal math verification studio powered by Meta Muse Spark Open (`baseten/meta-models/muse-spark-open-1026`) and Kiro spec-driven steering. It contrasts single-pass naive LLM generation against a 3-stage Architect -> Prover -> Synthesizer pipeline with 1,000-trial property-based fuzzing.
+## Scope
 
-## 2. EARS Requirements
+A local mathematical verifier and a browser verification studio. Bundled traces are illustrative. Kiro assets are configuration, not authenticated usage evidence.
 
-### REQ-1: Three-Stage Multi-Agent Reasoning Pipeline
-- **WHEN** a user selects a systems verification scenario or submits a custom specification, **THE SYSTEM SHALL** execute Stage 1 (Architect decomposition), Stage 2 (Prover formal invariant extraction), and Stage 3 (Synthesizer verified implementation).
+## EARS requirements
 
-### REQ-2: Deterministic Counterexample Discovery & 1,000-Trial Property Fuzzing
-- **WHEN** comparing the Naive Single-Pass implementation against the MuseWeaver Verified implementation, **THE SYSTEM SHALL** execute 1,000 randomized property trials using a seeded PRNG (`mulberry32`) and surface exact deterministic counterexamples (`Float drift = 1,000,000 micro-tokens`, `BFT Split-Brain Quorum Intersection = 0 honest nodes`, `Greedy vs Exact DP suboptimality = 7.0`).
+- WHEN a supported structured proposal is received, THE SYSTEM SHALL search for a Z3 counterexample to the specified integer transition.
+- WHEN a proposal is malformed, unsupported or inconclusive, THE SYSTEM SHALL deny mathematical approval.
+- WHEN custom source is edited, THE SYSTEM SHALL execute it only in the opaque-frame worker and SHALL NOT reuse bundled-code certificates.
+- WHEN a worker exceeds the host-owned deadline, THE SYSTEM SHALL remove its frame and report a timeout.
+- WHEN live inference is explicitly selected, THE SYSTEM SHALL require an exact allowed endpoint and session-only credentials.
+- WHEN seeded tests are requested, THE SYSTEM SHALL preserve seed zero and reject out-of-range controls.
+
+## Acceptance evidence
+
+Run the actual Node and Python regression suites. Formal source model scope, integer counterexamples and shader-free browser isolation must be inspectable. No arbitrary-program proof, model inference or real Kiro session is implied by this file.

@@ -1,153 +1,73 @@
-# MuseWeaver - Live Multi-Agent Code & Math Verification Studio
+# MuseWeaver
 
-> **Powered by `meta-models/muse-spark-open-1026` via Baseten**
+A local verification studio for developer-agent proposals. Mathematical checks run in Z3, deterministic property tests run in JavaScript, and custom code runs in an isolated browser worker.
 
-MuseWeaver is an award-crafted interactive web application that demonstrates a **Proposer → Skeptic → Judge** multi-agent verification loop, all running live in the browser with real deterministic execution and zero fake telemetry.
-
-Built for the **Meta Global AI Developer Hackathon on Cerebral Valley** - Indie Developer Track + Best Build on Meta Open Weight Models + Best Agentic Use-Case.
-
----
-
-## What It Does
-
-MuseWeaver takes hard computer science problems and runs them through a three-agent pipeline:
-
-| Stage | Agent | Role |
-|-------|-------|------|
-| **1. Proposer** | `muse-spark-open-1026` | Generates the algorithm, reasoning trace, and formal invariants |
-| **2. Skeptic** | `muse-spark-open-1026` | Adversarially critiques the proposal and generates boundary/fuzz tests |
-| **3. Judge** | Deterministic engine | Executes 1,000 fuzz trials in-browser and synthesizes a formal verdict |
-
-The entire verification suite - including property-based fuzzing, counterexample search, and invariant checking - runs **for real** in the browser via `performance.now()` timing and real JavaScript assertions. No mocks, no simulated results.
-
----
-
-## The Three Benchmark Scenarios
-
-### 1. Lock-Free Token Bucket Rate Limiter
-**Badge:** `CONCURRENCY`
-
-A naive float-based token bucket accumulates IEEE 754 rounding errors and mishandles burst-boundary timing. MuseWeaver's verified fix uses **integer microsecond CAS** - zero drift, zero races.
-
-- **Invariants:** Capacity Bound (`microTokens ≤ C·10⁶`), Conservation, Rate Fidelity
-- **Bug caught:** Float drift of ~1 micro-token per burst window
-
-### 2. Byzantine Quorum Consensus Threshold
-**Badge:** `CONSENSUS`
-
-Proves why `N = 3f` is unsafe under equivocation and `N = 3f + 1` is necessary and tight. The skeptic constructs an explicit **equivocation attack matrix** showing split-brain with `N = 6, f = 2`.
-
-- **Invariants:** Honest Intersection (`|Q₁ ∩ Q₂ ∩ H| ≥ 1`), No Split-Brain, Threshold Minimality
-- **Bug caught:** Two quorums `{0,1,4,5}` and `{2,3,4,5}` sharing zero honest nodes
-
-### 3. Battery Arbitrage with Degradation Penalty
-**Badge:** `OPTIMIZATION`
-
-A greedy strategy looks locally optimal but is globally suboptimal. The verified **Bellman DP** finds the true optimum, cross-checked against brute-force enumeration.
-
-- **Invariants:** Bellman Optimality, SOC Bounds, Brute-Force Agreement
-- **Bug caught:** Greedy profit `2.0` vs DP optimum `7.0` on price curve `[3, 1, 10, 2]`
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  index.html  - Dark studio UI (#0B0F17, Space Grotesk)  │
-│  styles.css  - Responsive, high-contrast, micro-anims   │
-├─────────────────────────────────────────────────────────┤
-│  js/captured-traces.js                                  │
-│    • Real reasoning_content traces from muse-spark-open  │
-│    • Live API client (Baseten + localhost:20128 proxy)  │
-├─────────────────────────────────────────────────────────┤
-│  js/verifier.js  - Deterministic execution engine        │
-│    • Naive (buggy) vs Verified implementations           │
-│    • Property-based fuzzing with seeded PRNG             │
-│    • Real counterexample search                          │
-├─────────────────────────────────────────────────────────┤
-│  js/app.js  - UI controller                             │
-│    • Scenario switching, pipeline animation               │
-│    • Interactive SVG Proof DAG                           │
-│    • Report export, permalink, live API modal            │
-└─────────────────────────────────────────────────────────┘
-```
-
-### How `muse-spark-open-1026` Powers the Loop
-
-1. **Proposer** - The model's `reasoning_content` chain-of-thought is captured verbatim and displayed as an inspectable trace. It derives the algorithm, identifies the bug class, and extracts formal invariants `I₁, I₂, I₃`.
-
-2. **Skeptic** - A second call (or the same trace's adversarial section) generates boundary test cases and fuzz strategies targeting the exact vulnerability.
-
-3. **Judge** - Deterministic synthesis: the in-browser engine runs both implementations, checks every invariant, searches for counterexamples, and renders the verdict + Proof DAG.
-
-When a **Baseten API key** is configured (via the Live API Settings modal), the app can call `https://inference.baseten.co/v1/chat/completions` live. A local proxy at `http://localhost:20128/v1/chat/completions` is also supported. Without a key, the app runs fully offline using captured traces + the live execution sandbox - every button still works.
-
----
-
-## Quickstart
-
-### GitHub Pages
-
-The app is a fully static site. Push to `gh-pages` or configure Pages to serve from the `museweaver/` directory:
-
-```
-https://aariv.me/museweaver/
-```
-
-### Local
+## Start and verify
 
 ```bash
-cd museweaver
 python3 -m http.server 8000
-# Open http://localhost:8000
 ```
 
-No build step, no dependencies, no bundler. Just open `index.html`.
+Open `http://localhost:8000`. The bundled scenarios do not need a model, API key or build step. Browser fonts may fall back when offline.
 
-### Live API (Optional)
-
-1. Click **Live API Settings** in the header
-2. Enter your Baseten API key (from [baseten.co](https://baseten.co))
-3. Optionally set a custom inference URL (e.g., `http://localhost:20128/v1/chat/completions` for local OmniRoute)
-4. Click **Test Connection** to verify, then **Save Settings**
-5. Use the **Custom Task Composer** to send live prompts to `muse-spark-open-1026`
-
-Without an API key, all three benchmark scenarios work perfectly via captured traces.
-
----
-
-## Verification Benchmarks
-
-All benchmarks run deterministically with `seed=42`:
-
-| Scenario | Checks | Pass Rate | Time | Bug Caught |
-|----------|--------|-----------|------|------------|
-| Rate Limiter | ~1,005 | 100% verified | ~15ms | Float drift confirmed |
-| Quorum | ~12 | 100% verified | ~5ms | Split-brain with N=3f |
-| Battery DP | ~1,008 | 100% verified | ~30ms | Greedy suboptimal by 5.0 |
-
-Run any benchmark from the browser console:
-
-```javascript
-runVerification("rate-limiter", { trials: 1000, seed: 42 })
-runVerification("quorum", { trials: 1000, seed: 42 })
-runVerification("battery", { trials: 1000, seed: 42 })
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python formal_verifier.py
+.venv/bin/python -m pytest -q
+npm test
 ```
 
----
+Browser regression tests use a throwaway headless Chromium profile. On Linux, install the test browser with `.venv/bin/python -m playwright install --with-deps chromium`.
 
-## Project Requirements Checklist
+## What is actually verified
 
-- [x] Uses `meta-models/muse-spark-open-1026` via Baseten inference
-- [x] Proxied locally at `http://localhost:20128/v1/chat/completions` as `baseten/meta-models/muse-spark-open-1026`
-- [x] Runs 100% on GitHub Pages (`https://aariv.me/museweaver/`) and locally (`python3 -m http.server`)
-- [x] Zero console errors, zero fake telemetry, real deterministic verification
-- [x] High-craft dark studio UI with specified color palette and fonts
-- [x] All buttons functional, zero placeholders or TODOs
+The Python verifier accepts a small structured proposal language, not arbitrary generated Python or JavaScript.
 
----
+For a token bucket, capacity is a positive integer, balances are integer microtokens and refill is any nonnegative integer increment. Z3 searches for a violation of capacity bounds, nonnegative balance, inclusive admission at one token and exact agreement with the reference transition. A correct candidate returns `unsat`. Missing clamping, incorrect debit and strict-boundary admission return concrete counterexamples.
 
-## License
+Quorum verification checks both `2q - N > f` for an honest shared member and `q <= N - f` for availability. A threshold can satisfy intersection while preventing progress. The local demo exposes that distinction.
 
-MIT - Built with care for the Meta Global AI Developer Hackathon.
+Unknown proposal schemas, malformed values, solver errors and inconclusive solver results are not approval. The proofs apply to these mathematical models. They are not compiler-checked proofs of the entire application.
+
+## Browser studio
+
+The three scenarios remain available.
+
+- Exact integer token buckets compared with a floating-point baseline. BigInt intermediates prevent overflow before saturation.
+- Byzantine quorum intersection and an explicit split-brain construction for an insufficient threshold.
+- Battery scheduling with a Bellman dynamic program, state-of-charge checks and small-instance brute-force comparisons.
+
+Seed zero is supported, fuzz controls are bounded, and the displayed duration is measured. Expected failures in a deliberately flawed baseline are distinct from violations in the tested implementation.
+
+The Proposer, Skeptic and Judge panels contain bundled illustrative reasoning traces. They are not authenticated model-inference transcripts. The pipeline animation does not launch three live agents.
+
+## Developer-agent boundary
+
+The companion BlastRadius Zero project provides the default-deny action gate. The research package combines this verifier with that actual gate and evaluates four ablations on labelled arithmetic mutants and structured action fixtures.
+
+In the campaign workspace, run `../../kaggle_submissions/gemma-4-developer-agent-paper/guardrail_benchmark.py`. The package includes raw decisions, counterexamples, source hashes, measured tables, an academic writeup and an executable notebook. Its examples are generated fixtures. No Gemma inference result is claimed.
+
+This is a useful boundary for an open-weights developer agent because candidate generation and approval are separate. A model may propose a transition and action; only a verified transition and permitted action can pass the combined boundary. No executor is included.
+
+## Isolated custom execution
+
+Edited code no longer executes in the host page with a Function constructor. An opaque-origin sandbox frame owns a blob worker with network-denying Content Security Policy. The host owns the execution deadline and removes the frame after success, error or timeout.
+
+Custom code can use `assert`, `log` and asynchronous operations. Output sizes are bounded. The supplied tests execute inside the same isolated context. A loop that never returns is timed out without freezing the host.
+
+These assertions are observations supplied by untrusted code, not certificates. A malicious program can lie about its own assertions. Browser compromise and memory-exhaustion attacks are outside this containment claim.
+
+## Optional model integration
+
+Live inference is opt-in. The existing Baseten client accepts HTTPS on the exact provider hostname or an exact loopback host. Credential-bearing URLs, query parameters, misleading hostname matches and redirects are rejected.
+
+Keys are session-only and are not written to localStorage. The old persistent key is removed on load. Live calls transmit the displayed task and code to the selected endpoint. The local benchmark does not make those calls, download weights or incur inference charges.
+
+## Evidence and competition status
+
+Kiro specs and hooks are included as inspectable development assets. Their presence alone does not prove Kiro was used. The hook executes actual Node regression tests.
+
+Kiroween 2026 requires an age-of-majority entrant, substantial Kiro usage, a new project during the submission window, a public licensed repository and a working demonstration under three minutes. Those requirements must be established before entry. No competition eligibility, prize, acceptance or deployment is claimed by this repository.
+
+MIT licensed. AI-assisted implementation and documentation are disclosed.

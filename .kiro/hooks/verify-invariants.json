@@ -1,16 +1,17 @@
 {
-  "name": "verify-invariants-on-save",
-  "version": "1.0.0",
-  "description": "Runs syntax and invariant verification checks whenever verifier.js or captured-traces.js is updated.",
-  "trigger": {
-    "event": "onFileSave",
-    "globs": ["js/**/*.js", "index.html"]
-  },
-  "actions": [
+  "version": "v1",
+  "hooks": [
     {
-      "type": "command",
-      "command": "node -c js/verifier.js && node -c js/captured-traces.js && node -c js/app.js",
-      "description": "Verify JavaScript syntax and deterministic fuzzing harness"
+      "name": "Verification regression tests",
+      "description": "Run the actual deterministic Node suite after source edits. Configuration is not a Kiro usage receipt.",
+      "trigger": "PostFileSave",
+      "matcher": "\\.(js|html|py)$",
+      "action": {
+        "type": "command",
+        "command": "npm test"
+      },
+      "timeout": 60,
+      "enabled": true
     }
   ]
 }

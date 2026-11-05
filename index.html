@@ -2,13 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://inference.baseten.co http://localhost:* http://127.0.0.1:* https://localhost:* https://127.0.0.1:*; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MuseWeaver - Live Multi-Agent Code &amp; Math Verification Studio</title>
 <meta name="description" content="MuseWeaver - deterministic verification studio with local Z3 proofs, exact integer guardrails, illustrative agent traces, and isolated custom-code execution. Optional provider inference is opt-in.">
 <meta property="og:title" content="MuseWeaver - Live Multi-Agent Verification Studio">
 <meta property="og:description" content="Powered by meta-models/muse-spark-open-1026 via Baseten. Real deterministic verification in your browser.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -17,7 +16,7 @@
 <header class="top-header">
   <div class="header-left">
     <div class="logo"><span class="logo-mark">M</span> MuseWeaver</div>
-    <span class="model-badge"><span class="dot"></span>meta-models/muse-spark-open-1026 via Baseten</span>
+    <span class="model-badge"><span class="dot"></span>Local verification; optional Baseten inference</span>
   </div>
   <div class="header-center">
     <div class="pipeline-indicator" id="pipeline-indicator">
@@ -33,6 +32,7 @@
     <button class="btn btn-primary" id="run-pipeline-btn">Run Multi-Agent Verification Pipeline</button>
   </div>
 </header>
+<p style="margin:12px 24px;color:var(--text-secondary)">Bundled agent traces are illustrative. Browser results are measured tests, not whole-program proofs. The Python verifier produces local Z3 certificates for its restricted proposal language.</p>
 
 <!-- Scenario Selector -->
 <div class="scenario-bar" id="scenario-bar">
