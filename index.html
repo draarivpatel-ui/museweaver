@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MuseWeaver - Live Multi-Agent Code &amp; Math Verification Studio</title>
-<meta name="description" content="MuseWeaver: Live Multi-Agent Code & Math Verification Studio powered by Meta Muse Spark Open via Baseten. Proposer -> Skeptic -> Judge pipeline with real in-browser execution.">
+<meta name="description" content="MuseWeaver - deterministic verification studio with local Z3 proofs, exact integer guardrails, illustrative agent traces, and isolated custom-code execution. Optional provider inference is opt-in.">
 <meta property="og:title" content="MuseWeaver - Live Multi-Agent Verification Studio">
 <meta property="og:description" content="Powered by meta-models/muse-spark-open-1026 via Baseten. Real deterministic verification in your browser.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -38,7 +38,7 @@
 <div class="scenario-bar" id="scenario-bar">
   <div class="scenario-card active" data-scenario="rate-limiter">
     <span class="sc-badge badge-concurrency">CONCURRENCY</span>
-    <div class="sc-title">Lock-Free Token Bucket Rate Limiter</div>
+    <div class="sc-title">Exact Integer Token Bucket Rate Limiter</div>
     <div class="sc-desc">Float-drift &amp; burst-boundary race condition audit across 1,000 concurrent requests</div>
   </div>
   <div class="scenario-card" data-scenario="quorum">
@@ -172,7 +172,7 @@
 
       <!-- Verdict -->
       <div id="judge-verdict">
-        <div class="empty-state">Run the pipeline to generate the formal verdict.</div>
+        <div class="empty-state">Run the pipeline to inspect measured test results. Formal proofs run through the Python Z3 verifier.</div>
       </div>
 
       <!-- Export -->
@@ -204,7 +204,7 @@
     <div class="api-modal-body">
       <label>
         Baseten API Key
-        <input type="password" id="api-key-input" placeholder="sk-... (stored locally in localStorage)">
+        <input type="password" id="api-key-input" autocomplete="off" placeholder="Paste a provider key for this session only">
         <span class="hint">Get your key at baseten.co - or leave empty to use built-in verified traces + live execution sandbox.</span>
       </label>
       <label>

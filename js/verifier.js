@@ -54,14 +54,25 @@ class VerifiedBucket {
     this.capacity = capacity;
     this.refillPerSec = refillPerSec;
     this.microTokens = capacity * 1_000_000;
+    if (!Number.isSafeInteger(capacity) || capacity < 1 ||
+        capacity > Math.floor(Number.MAX_SAFE_INTEGER / 1_000_000) ||
+        !Number.isSafeInteger(refillPerSec) || refillPerSec < 0) {
+      throw new RangeError("Capacity and refill rate must be bounded exact integers");
+    }
     this.lastRefillMicros = 0;
     this._init = false;
   }
   refill(nowMicros) {
+    if (!Number.isSafeInteger(nowMicros) || nowMicros < 0 ||
+        (this._init && nowMicros < this.lastRefillMicros)) {
+      throw new RangeError("Timestamp must be a monotonic nonnegative exact integer");
+    }
     if (!this._init) { this.lastRefillMicros = nowMicros; this._init = true; return; }
     const elapsed = nowMicros - this.lastRefillMicros;
     if (elapsed <= 0) return;
-    this.microTokens = Math.min(this.microTokens + elapsed * this.refillPerSec, this.capacity * 1_000_000);
+    const next = BigInt(this.microTokens) + BigInt(elapsed) * BigInt(this.refillPerSec);
+    const limit = BigInt(this.capacity) * 1_000_000n;
+    this.microTokens = Number(next > limit ? limit : next);
     this.lastRefillMicros = nowMicros;
   }
   tryConsume(nowMicros) {
@@ -471,7 +482,7 @@ function verifyQuorum(fuzzTrials, seed) {
       passed: logs.filter(l => l.pass).length,
       failed: logs.filter(l => !l.pass).length,
       naiveBugsCaught: counterexample ? 1 : 0,
-      verifiedBugs: 0
+      verifiedBugs: logs.filter(l => !l.pass).length
     }
   };
 }
@@ -688,7 +699,7 @@ function verifyBattery(fuzzTrials = 1000, seed = 42) {
       passed: logs.filter(l => l.pass).length,
       failed: logs.filter(l => !l.pass).length,
       naiveBugsCaught: counterexample ? 1 : 0,
-      verifiedBugs: 0
+      verifiedBugs: logs.filter(l => !l.pass).length
     }
   };
 }
@@ -697,8 +708,12 @@ function verifyBattery(fuzzTrials = 1000, seed = 42) {
 // Unified Runner - called by app.js
 // ============================================================
 function runVerification(scenarioId, opts = {}) {
-  const trials = opts.trials || 1000;
-  const seed = opts.seed || 42;
+  const trials = opts.trials ?? 1000;
+  const seed = opts.seed ?? 42;
+  if (!Number.isSafeInteger(trials) || trials < 1 || trials > 10000 ||
+      !Number.isSafeInteger(seed) || seed < 0 || seed > 0xFFFFFFFF) {
+    throw new RangeError("Require 1-10000 trials and a uint32 seed");
+  }
   switch (scenarioId) {
     case "rate-limiter": return verifyRateLimiter(trials, seed);
     case "quorum": return verifyQuorum(trials, seed);
@@ -714,31 +729,53 @@ function runComparison(scenarioId) {
   return {
     ...result,
     comparison: {
-      naive: "Exhibits bug - counterexample found",
-      verified: "All invariants hold - 100% pass",
+      naive: result.counterexample ? "Counterexample found" : "No divergence observed",
+      verified: result.summary.verifiedBugs === 0 ? "Tested invariants passed" : "Invariant violation observed",
       verdict: result.counterexample ? "BUG CAUGHT" : "NO DIVERGENCE"
     }
   };
 }
 
-// Custom code execution - runs user-edited code in sandbox
-function runCustomCode(code, tests) {
-  const logs = [];
+// Observations, not proofs. A network-denying opaque frame owns a timed worker.
+async function runCustomCode(code, tests = [], timeoutMs = 1500) {
   const t0 = performance.now();
-  try {
-    // Create sandboxed execution via Function constructor
-    const fn = new Function("assert", "log", code);
-    const assertions = [];
-    const assert = (cond, msg) => {
-      assertions.push({ pass: !!cond, msg: msg || (cond ? "pass" : "fail") });
-    };
-    const log = (...args) => logs.push({ type: "log", text: args.join(" ") });
-
-    fn(assert, log);
-
-    const elapsed = performance.now() - t0;
-    return { elapsed: elapsed.toFixed(1), assertions, logs, error: null };
-  } catch (e) {
-    return { elapsed: "0", assertions: [], logs, error: e.message };
-  }
+  const invalid = typeof code !== "string" || code.length > 100000 ||
+    !Array.isArray(tests) || tests.some(t => typeof t !== "string") ||
+    tests.join("\n").length > 100000 || !Number.isFinite(timeoutMs) || timeoutMs < 100 || timeoutMs > 5000;
+  if (invalid) return { elapsed: "0", assertions: [], logs: [], error: "Invalid execution request" };
+  return new Promise(resolve => {
+    const frame = document.createElement("iframe");
+    frame.setAttribute("sandbox", "allow-scripts");
+    frame.hidden = true;
+    frame.src = new URL("js/execution-sandbox.html", document.baseURI).href;
+    const nonce = crypto.randomUUID();
+    let finished = false;
+    function finish(result) {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      window.removeEventListener("message", receive);
+      frame.remove();
+      resolve({ ...result, elapsed: (performance.now() - t0).toFixed(1) });
+    }
+    function receive(event) {
+      if (event.source !== frame.contentWindow || event.data?.nonce !== nonce ||
+          event.data?.type !== "execution-result") return;
+      const r = event.data.result;
+      if (!r || !Array.isArray(r.assertions) || r.assertions.length > 256 ||
+          !Array.isArray(r.logs) || r.logs.length > 64 ||
+          r.assertions.some(a => !a || typeof a.pass !== "boolean" || typeof a.msg !== "string" || a.msg.length > 1000) ||
+          r.logs.some(l => !l || typeof l.text !== "string" || l.text.length > 2000) ||
+          (r.error !== null && (typeof r.error !== "string" || r.error.length > 1000))) {
+        finish({ assertions: [], logs: [], error: "Invalid worker response" });
+        return;
+      }
+      finish({ assertions: r.assertions, logs: r.logs, error: r.error || null });
+    }
+    const timer = setTimeout(() => finish({ assertions: [], logs: [], error: "Execution timed out" }), timeoutMs);
+    window.addEventListener("message", receive);
+    frame.onload = () => frame.contentWindow.postMessage({ type: "execute", nonce, code, tests }, "*");
+    frame.onerror = () => finish({ assertions: [], logs: [], error: "Execution frame failed" });
+    document.body.appendChild(frame);
+  });
 }
