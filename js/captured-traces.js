@@ -1,6 +1,6 @@
 // ============================================================
 // MuseWeaver - Captured Traces & Live API Client
-// Real reasoning traces from meta-models/muse-spark-open-1026
+// Bundled illustrative reasoning traces, not authenticated inference evidence.
 // via Baseten (https://inference.baseten.co/v1/chat/completions)
 // Local proxy: http://localhost:20128/v1/chat/completions
 // ============================================================
@@ -8,8 +8,8 @@
 const CAPTURED_TRACES = {
   "rate-limiter": {
     id: "rate-limiter",
-    title: "Lock-Free Token Bucket Rate Limiter",
-    subtitle: "Concurrency & Race Condition Audit",
+    title: "Exact Integer Token Bucket Rate Limiter",
+    subtitle: "Scaled Arithmetic and Admission Boundary Audit",
     badge: "CONCURRENCY",
     icon: "&#9673;",
     proposer: {
@@ -453,12 +453,25 @@ const API_CONFIG = {
   directModel: "meta-models/muse-spark-open-1026"
 };
 
+const MUSE_RUNTIME_SETTINGS = { apiKey: "", baseUrl: API_CONFIG.basetenUrl };
+// Retire the old plaintext persistent-secret storage.
+try { localStorage.removeItem("museweaver_baseten_key"); } catch (_) {}
+function validateMuseEndpoint(value) {
+  const url = new URL(value);
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  const hosted = url.protocol === "https:" && url.hostname === "inference.baseten.co";
+  if (url.username || url.password || url.search || url.hash ||
+      !(hosted || (local && ["http:", "https:"].includes(url.protocol)))) {
+    throw new Error("Use HTTPS Baseten or an exact loopback host without credentials or query parameters");
+  }
+  return url.href;
+}
 async function callMuseSpark(messages, opts = {}) {
-  const apiKey = opts.apiKey || localStorage.getItem("museweaver_baseten_key") || "";
-  const baseUrl = opts.baseUrl || localStorage.getItem("museweaver_base_url") || API_CONFIG.basetenUrl;
+  const apiKey = opts.apiKey ?? MUSE_RUNTIME_SETTINGS.apiKey;
+  const baseUrl = validateMuseEndpoint(opts.baseUrl || MUSE_RUNTIME_SETTINGS.baseUrl);
   const model = opts.model || API_CONFIG.directModel;
 
-  if (!apiKey && baseUrl.includes("baseten.co")) {
+  if (!apiKey && new URL(baseUrl).hostname === "inference.baseten.co") {
     throw new Error("No API key configured. Add your Baseten key in Live API Settings or use captured traces.");
   }
 
@@ -467,6 +480,9 @@ async function callMuseSpark(messages, opts = {}) {
 
   const res = await fetch(baseUrl, {
     method: "POST",
+    credentials: "omit",
+    redirect: "error",
+    signal: AbortSignal.timeout(30000),
     headers,
     body: JSON.stringify({
       model,

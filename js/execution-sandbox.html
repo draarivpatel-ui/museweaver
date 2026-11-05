@@ -1,0 +1,48 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; worker-src blob:; connect-src 'none'; img-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'">
+<title>MuseWeaver isolated execution worker</title>
+<script>
+"use strict";
+// A sandboxed opaque-origin frame owns this worker. Blob workers inherit CSP.
+addEventListener("message", function start(event) {
+  if (event.source !== parent || !event.data || event.data.type !== "execute") return;
+  removeEventListener("message", start);
+  const nonce = event.data.nonce;
+  const bootstrap = function () {
+    "use strict";
+    onmessage = async event => {
+      const assertions = [], logs = [];
+      const assert = (condition, message) => {
+        if (assertions.length >= 256) throw Error("Assertion limit exceeded");
+        assertions.push({ pass: Boolean(condition), msg: String(message || "assertion").slice(0, 1000) });
+      };
+      const log = (...args) => {
+        if (logs.length >= 64) throw Error("Log limit exceeded");
+        logs.push({ type: "log", text: args.map(String).join(" ").slice(0, 2000) });
+      };
+      let error = null;
+      try {
+        const source = event.data.code + "\n" + event.data.tests.join("\n");
+        const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+        await new AsyncFunction("assert", "log", '"use strict";\n' + source)(assert, log);
+      } catch (e) { error = String(e.message || e).slice(0, 1000); }
+      postMessage({ assertions, logs, error });
+    };
+  };
+  const url = URL.createObjectURL(new Blob(["(" + bootstrap.toString() + ")()"], { type: "text/javascript" }));
+  const worker = new Worker(url);
+  worker.onmessage = message => {
+    parent.postMessage({ type: "execution-result", nonce, result: message.data }, "*");
+    worker.terminate();
+    URL.revokeObjectURL(url);
+  };
+  worker.onerror = () => {
+    parent.postMessage({ type: "execution-result", nonce,
+      result: { assertions: [], logs: [], error: "Worker execution failed" } }, "*");
+    worker.terminate();
+    URL.revokeObjectURL(url);
+  };
+  worker.postMessage({ code: event.data.code, tests: event.data.tests });
+});
+</script>

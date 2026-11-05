@@ -14,7 +14,7 @@ let dagSelectedNode = null;
 // --- Scenario metadata for UI ---
 const SCENARIOS = {
   "rate-limiter": {
-    label: "Lock-Free Token Bucket",
+    label: "Exact Integer Token Bucket",
     shortLabel: "Rate Limiter",
     badge: "CONCURRENCY",
     badgeClass: "badge-concurrency",
@@ -339,10 +339,10 @@ function renderJudgeVerdict(result) {
   const verdictEl = document.getElementById("judge-verdict");
   if (!verdictEl) return;
 
-  const allPass = result.summary.failed === 0;
+  const allPass = result.summary.verifiedBugs === 0;
   const verdictClass = allPass ? "verdict-pass" : "verdict-fail";
   const verdictIcon = allPass ? "&#10003;" : "&#10007;";
-  const verdictText = allPass ? "VERIFIED" : "ISSUES FOUND";
+  const verdictText = allPass ? "TESTED INVARIANTS PASS" : "ISSUES FOUND";
 
   verdictEl.innerHTML = `
     <div class="verdict-card ${verdictClass}">
@@ -576,8 +576,8 @@ function initApiModal() {
     // Populate current values
     const keyInput = document.getElementById("api-key-input");
     const urlInput = document.getElementById("api-url-input");
-    if (keyInput) keyInput.value = localStorage.getItem("museweaver_baseten_key") || "";
-    if (urlInput) urlInput.value = localStorage.getItem("museweaver_base_url") || "https://inference.baseten.co/v1/chat/completions";
+    if (keyInput) keyInput.value = MUSE_RUNTIME_SETTINGS.apiKey;
+    if (urlInput) urlInput.value = MUSE_RUNTIME_SETTINGS.baseUrl;
   });
 
   function closeModal() { modal.classList.remove("open"); }
@@ -587,10 +587,14 @@ function initApiModal() {
   if (saveBtn) saveBtn.addEventListener("click", () => {
     const keyInput = document.getElementById("api-key-input");
     const urlInput = document.getElementById("api-url-input");
-    if (keyInput) localStorage.setItem("museweaver_baseten_key", keyInput.value.trim());
-    if (urlInput) localStorage.setItem("museweaver_base_url", urlInput.value.trim());
     const status = document.getElementById("api-modal-status");
-    if (status) { status.textContent = "Settings saved."; status.className = "api-status ok"; }
+    try {
+      MUSE_RUNTIME_SETTINGS.baseUrl = validateMuseEndpoint(urlInput?.value.trim() || API_CONFIG.basetenUrl);
+      MUSE_RUNTIME_SETTINGS.apiKey = keyInput?.value.trim() || "";
+      if (status) { status.textContent = "Session-only settings saved. Live calls send the displayed code to this endpoint."; status.className = "api-status ok"; }
+    } catch (e) {
+      if (status) { status.textContent = e.message; status.className = "api-status err"; }
+    }
   });
 
   if (testBtn) testBtn.addEventListener("click", async () => {
@@ -630,7 +634,7 @@ function exportReport() {
   const md = `# MuseWeaver Verification Report
 
 **Scenario:** ${scenario.label} - ${scenario.desc}
-**Model:** meta-models/muse-spark-open-1026 via Baseten
+**Trace provenance:** Bundled illustrative traces, not authenticated model inference evidence
 **Generated:** ${new Date().toISOString()}
 **Trials:** ${lastResult.summary.total} checks in ${lastResult.elapsed}ms
 **Verdict:** ${lastResult.summary.failed === 0 ? "VERIFIED" : "ISSUES FOUND"} (${lastResult.summary.passed}/${lastResult.summary.total} passed)
@@ -706,9 +710,9 @@ function initCodeEdit() {
   const resetBtn = document.getElementById("reset-code-btn");
   if (!codeEl) return;
 
-  if (runBtn) runBtn.addEventListener("click", () => {
+  if (runBtn) runBtn.addEventListener("click", async () => {
     const code = codeEl.value;
-    const customResult = runCustomCode(code, []);
+    const customResult = await runCustomCode(code, []);
     const logsEl = document.getElementById("execution-logs");
     if (customResult.error) {
       if (logsEl) logsEl.innerHTML = `<div class="log-error">Execution error: ${escapeHtml(customResult.error)}</div>`;
@@ -717,14 +721,10 @@ function initCodeEdit() {
         `<div class="log-entry ${a.pass ? 'log-pass' : 'log-fail'}">${a.pass ? "&#10003;" : "&#10007;"} ${escapeHtml(a.msg)}</div>`
       ).join("") + customResult.logs.map(l => `<div class="log-entry log-info">${escapeHtml(l.text)}</div>`).join("");
     }
-    // Also re-run full verification with edited code context
-    if (!customResult.error) {
-      const result = runVerification(currentScenario, { trials: parseInt(document.getElementById("fuzz-trials-input")?.value || "1000", 10) });
-      lastResult = result;
-      renderExecutionResults(result);
-      renderJudgeVerdict(result);
-      renderDag(currentScenario, result);
-    }
+    // Never attach the bundled implementation's verification to edited code.
+    const verdict = document.getElementById("judge-verdict");
+    if (verdict) verdict.textContent = "Edited code executed in isolation. These custom assertions are not a formal verification certificate.";
+    lastResult = null;
   });
 
   if (resetBtn) resetBtn.addEventListener("click", () => {
@@ -754,10 +754,10 @@ function initCustomComposer() {
     }
 
     // Try live API if configured, otherwise use local execution for code
-    const apiKey = localStorage.getItem("museweaver_baseten_key");
-    const baseUrl = localStorage.getItem("museweaver_base_url");
+    const apiKey = MUSE_RUNTIME_SETTINGS.apiKey;
+    const baseUrl = MUSE_RUNTIME_SETTINGS.baseUrl;
 
-    if (apiKey || (baseUrl && baseUrl.includes("localhost"))) {
+    if (apiKey || ["localhost", "127.0.0.1", "[::1]"].includes(new URL(baseUrl).hostname)) {
       if (statusEl) { statusEl.textContent = "Calling muse-spark-open-1026 via Baseten..."; statusEl.className = "api-status pending"; }
       try {
         const messages = [
@@ -774,7 +774,7 @@ function initCustomComposer() {
         }
         // Try to execute custom code
         if (code) {
-          const execResult = runCustomCode(code, []);
+          const execResult = await runCustomCode(code, []);
           renderCustomExecution(execResult, result.content);
         }
         if (statusEl) { statusEl.textContent = "Live verification complete."; statusEl.className = "api-status ok"; }
@@ -784,7 +784,7 @@ function initCustomComposer() {
     } else {
       // Offline: just run code execution
       if (code) {
-        const execResult = runCustomCode(code, []);
+        const execResult = await runCustomCode(code, []);
         renderCustomExecution(execResult, null);
         if (statusEl) { statusEl.textContent = execResult.error ? `Error: ${execResult.error}` : "Executed locally (no API key - add one in Live API Settings for AI analysis)."; statusEl.className = execResult.error ? "api-status err" : "api-status ok"; }
       } else {
