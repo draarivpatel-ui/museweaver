@@ -458,7 +458,7 @@ const MUSE_RUNTIME_SETTINGS = { apiKey: "", baseUrl: API_CONFIG.basetenUrl };
 try { localStorage.removeItem("museweaver_baseten_key"); } catch (_) {}
 function validateMuseEndpoint(value) {
   const url = new URL(value);
-  const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  const local = ["localhost", "127.0.0.1"].includes(url.hostname);
   const hosted = url.protocol === "https:" && url.hostname === "inference.baseten.co";
   if (url.username || url.password || url.search || url.hash ||
       !(hosted || (local && ["http:", "https:"].includes(url.protocol)))) {

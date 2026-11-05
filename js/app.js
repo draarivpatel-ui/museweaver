@@ -757,7 +757,7 @@ function initCustomComposer() {
     const apiKey = MUSE_RUNTIME_SETTINGS.apiKey;
     const baseUrl = MUSE_RUNTIME_SETTINGS.baseUrl;
 
-    if (apiKey || ["localhost", "127.0.0.1", "[::1]"].includes(new URL(baseUrl).hostname)) {
+    if (apiKey || ["localhost", "127.0.0.1"].includes(new URL(baseUrl).hostname)) {
       if (statusEl) { statusEl.textContent = "Calling muse-spark-open-1026 via Baseten..."; statusEl.className = "api-status pending"; }
       try {
         const messages = [
