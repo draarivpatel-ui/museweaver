@@ -13,11 +13,6 @@ function seededRandom(seed) {
   };
 }
 
-function fmt(n, digits = 2) {
-  if (Number.isInteger(n)) return String(n);
-  return n.toFixed(digits);
-}
-
 // ============================================================
 // SCENARIO 1 - Token Bucket Rate Limiter
 // ============================================================
@@ -720,20 +715,6 @@ function runVerification(scenarioId, opts = {}) {
     case "battery": return verifyBattery(trials, seed);
     default: throw new Error(`Unknown scenario: ${scenarioId}`);
   }
-}
-
-// Naive vs Verified comparison runner
-function runComparison(scenarioId) {
-  const result = runVerification(scenarioId);
-  // Annotate which tests catch naive bugs
-  return {
-    ...result,
-    comparison: {
-      naive: result.counterexample ? "Counterexample found" : "No divergence observed",
-      verified: result.summary.verifiedBugs === 0 ? "Tested invariants passed" : "Invariant violation observed",
-      verdict: result.counterexample ? "BUG CAUGHT" : "NO DIVERGENCE"
-    }
-  };
 }
 
 // Observations, not proofs. A network-denying opaque frame owns a timed worker.
