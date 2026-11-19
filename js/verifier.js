@@ -338,19 +338,12 @@ function verifyQuorum(fuzzTrials, seed) {
 
   // Test 1: N=3f counterexample (N=6,f=2)
   {
-    const qv = new QuorumVerifier(6, 2);
-    const res = qv.verifyAllPairs();
     // With N=6,f=2,q=5: min intersection = 2*5-6=4, need f+1=3 -> 4>=3 so it looks safe
     // But equivocation: Byzantine in both quorums makes honest intersection smaller
     // Real check: honest intersection with equivocation
     // N=6,f=2: honest=4 nodes. Two quorums of 5 must share 4 nodes. If 2 Byzantine equivocate, honest overlap could be 2.
     // The actual counterexample: partition {0,1} vs {2,3} with Byz {4,5} double-counted
-    const byzSet = new Set([4, 5]);
-    const qA = [0, 1, 2, 4, 5]; // quorum A: honest {0,1,2} + byz
-    const qB = [0, 3, 4, 5, 2]; // Different view - construct attack
     // Better: two quorums that share only Byzantine nodes in honest view
-    const honestA = qA.filter(x => !byzSet.has(x));
-    const honestB = [3, 4, 5, 0, 1].filter(x => !byzSet.has(x)); // quorums as seen with equivocation
     // The real attack: Byz tells group {0,1} that quorum is {0,1,4,5} (size 4 apparent)
     // and tells group {2,3} quorum is {2,3,4,5} - both look valid if threshold is wrong
     // With N=6,f=2 and honest threshold check: q should be 5, but naive uses q=4 (2f)
@@ -407,8 +400,6 @@ function verifyQuorum(fuzzTrials, seed) {
       const byz = Array.from({ length: f }, (_, i) => 2 * f + i);
       const quorumA = [...honestA, ...byz];
       const quorumB = [...honestB, ...byz];
-      const honestInter = quorumA.filter(x => honestA.includes(x) || honestB.slice(0,0).includes(x))
-        .filter(x => quorumB.includes(x) && (honestA.includes(x) || honestB.includes(x)));
       // Simpler: honest nodes in both quorums
       const honestSet = new Set([...honestA, ...honestB]);
       const honestInA = quorumA.filter(x => honestSet.has(x));
