@@ -70,4 +70,4 @@ Kiro specs and hooks are included as inspectable development assets. Their prese
 
 Kiroween 2026 requires an age-of-majority entrant, substantial Kiro usage, a new project during the submission window, a public licensed repository and a working demonstration under three minutes. Those requirements must be established before entry. No competition eligibility, prize, acceptance or deployment is claimed by this repository.
 
-MIT licensed. AI-assisted implementation and documentation are disclosed.
+MIT licensed.

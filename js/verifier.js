@@ -117,10 +117,12 @@ function verifyRateLimiter(fuzzTrials = 1000, seed = 42) {
     // Float drift: many fractional refills with a non-terminating binary fraction rate
     // Rate 7/s → 0.007 tokens per 1ms step - 0.007 has no exact binary representation
     // After 10,000 steps the accumulated IEEE 754 error is deterministic and measurable
-    const nd = new NaiveTokenBucket(100, 7);
-    const vd = new VerifiedBucket(100, 7);
-    // Drain first so we measure refill drift, not clamping
-    for (let i = 0; i < 10; i++) { nd.tryConsume(0); vd.tryConsume(0); }
+    // Capacity is chosen so refills never hit the clamp: drain fully, then the
+    // accumulated refill stays below capacity, so drift is measured, not masked.
+    const nd = new NaiveTokenBucket(60, 7);
+    const vd = new VerifiedBucket(60, 7);
+    // Drain fully so clamping cannot mask drift
+    for (let i = 0; i < 60; i++) { nd.tryConsume(0); vd.tryConsume(0); }
     // 500 refills of 13ms each with rate 7 = 500 * 13 * 0.007 = 500 * 0.091 = 45.5 tokens
     // Integer truth: 500 * 13000 * 7 = 45_500_000 micro-tokens
     for (let t = 13; t <= 6500; t += 13) {
@@ -128,9 +130,9 @@ function verifyRateLimiter(fuzzTrials = 1000, seed = 42) {
       vd.refill(t * 1000);
     }
     // Also add a micro-step drift test: 1000 steps of 3ms at rate 7 → 1000*3*0.007=21
-    const nd2 = new NaiveTokenBucket(100, 7);
-    const vd2 = new VerifiedBucket(100, 7);
-    for (let i = 0; i < 10; i++) { nd2.tryConsume(0); vd2.tryConsume(0); }
+    const nd2 = new NaiveTokenBucket(30, 7);
+    const vd2 = new VerifiedBucket(30, 7);
+    for (let i = 0; i < 30; i++) { nd2.tryConsume(0); vd2.tryConsume(0); }
     for (let t = 3; t <= 3000; t += 3) {
       nd2.refill(t);
       vd2.refill(t * 1000);
@@ -138,9 +140,10 @@ function verifyRateLimiter(fuzzTrials = 1000, seed = 42) {
     const drift = Math.abs(nd.tokens * 1_000_000 - vd.microTokens);
     const drift2 = Math.abs(nd2.tokens * 1_000_000 - vd2.microTokens);
     const maxDrift = Math.max(drift, drift2);
-    // The verified bucket is ground truth; any drift proves the naive bug
-    logs.push({ test: "float_drift_500x13ms_rate7", naive: `tokens=${nd.tokens.toFixed(10)}`, verified: `microTokens=${vd.microTokens}`, drift: `${drift.toFixed(2)} micro`, pass: true });
-    logs.push({ test: "float_drift_1000x3ms_rate7", naive: `tokens=${nd2.tokens.toFixed(10)}`, verified: `microTokens=${vd2.microTokens}`, drift: `${drift2.toFixed(2)} micro`, pass: true });
+    // The verified bucket is ground truth; any drift proves the naive bug.
+    // These are measurements, not verdicts: drift > 0.5 micro demonstrates the bug.
+    logs.push({ test: "float_drift_500x13ms_rate7", naive: `tokens=${nd.tokens.toFixed(10)}`, verified: `microTokens=${vd.microTokens}`, drift: `${drift.toFixed(2)} micro`, measurement: true, bug: drift > 0.5, pass: true });
+    logs.push({ test: "float_drift_1000x3ms_rate7", naive: `tokens=${nd2.tokens.toFixed(10)}`, verified: `microTokens=${vd2.microTokens}`, drift: `${drift2.toFixed(2)} micro`, measurement: true, bug: drift2 > 0.5, pass: true });
     // Burst-boundary: at t=1001ms the naive float does 1001*0.007=7.007 vs integer 1001000*7 micro
     // They agree here but under-admit at fractional boundaries - prove with admission divergence
     {
@@ -161,7 +164,7 @@ function verifyRateLimiter(fuzzTrials = 1000, seed = 42) {
         const verifHas = verifiedB.microTokens >= 1_000_000;
         if (naiveHas !== verifHas) {
           // Found divergence - the float bug manifests as admission disagreement
-          logs.push({ test: "burst_admission_divergence", atMs: ms, naiveTokens: naiveB.tokens.toFixed(12), verifiedMicro: verifiedB.microTokens, naiveHasToken: naiveHas, verifiedHasToken: verifHas, pass: false });
+          logs.push({ test: "burst_admission_divergence", atMs: ms, naiveTokens: naiveB.tokens.toFixed(12), verifiedMicro: verifiedB.microTokens, naiveHasToken: naiveHas, verifiedHasToken: verifHas, naiveBug: true, pass: false });
           counterexample = `Burst-boundary divergence at t=${ms}ms: naive=${naiveB.tokens.toFixed(12)} (hasToken=${naiveHas}) vs verified=${verifiedB.microTokens} micro (hasToken=${verifHas})`;
           naiveFails++;
           break;
@@ -188,7 +191,7 @@ function verifyRateLimiter(fuzzTrials = 1000, seed = 42) {
         if (d3 > 0.5) {
           counterexample = `Float drift after 1000 consume cycles (C=3,R=11,7ms steps): naive=${nd3.tokens.toFixed(12)} vs verified=${(vd3.microTokens/1e6).toFixed(6)} - drift ${d3.toFixed(2)} micro-tokens`;
           naiveFails++;
-          logs.push({ test: "float_drift_consume_cycle", drift: d3.toFixed(4) + " micro", pass: false, detail: counterexample });
+          logs.push({ test: "float_drift_consume_cycle", drift: d3.toFixed(4) + " micro", naiveBug: true, pass: false, detail: counterexample });
         } else {
           logs.push({ test: "float_drift_consume_cycle", drift: d3.toFixed(4) + " micro", note: "drift within tolerance for this seed", pass: true });
           // Force a guaranteed counterexample: direct IEEE 754 proof - 0.1+0.2 !== 0.3
@@ -198,7 +201,7 @@ function verifyRateLimiter(fuzzTrials = 1000, seed = 42) {
           if (floatSum !== 1.0) {
             counterexample = `IEEE 754 proof: 1/3+1/3+1/3 = ${floatSum.toFixed(20)} ≠ 1.0 - float token bucket loses ${((1.0-floatSum)*1e6).toFixed(1)} micro-tokens per 3 fractional refills`;
             naiveFails++;
-            logs.push({ test: "ieee754_one_third_proof", floatSum: floatSum.toFixed(20), expected: "1.0", lostMicro: ((1.0-floatSum)*1e6).toFixed(1), pass: false, detail: counterexample });
+            logs.push({ test: "ieee754_one_third_proof", floatSum: floatSum.toFixed(20), expected: "1.0", lostMicro: ((1.0-floatSum)*1e6).toFixed(1), naiveBug: true, pass: false, detail: counterexample });
           }
         }
       }
@@ -261,7 +264,7 @@ function verifyRateLimiter(fuzzTrials = 1000, seed = 42) {
     if (fuzzCounterexamples.length > 0) {
       const ce = fuzzCounterexamples[0];
       counterexample = `Trial ${ce.trial}: C=${ce.capacity} R=${ce.rate} - Naive admitted ${ce.naiveAdmitted} vs Verified ${ce.verifiedAdmitted}`;
-      logs.push({ test: "counterexample", detail: counterexample, pass: false });
+      logs.push({ test: "counterexample", detail: counterexample, naiveBug: true, pass: false });
       naiveFails++;
     }
   }
@@ -293,9 +296,9 @@ function verifyRateLimiter(fuzzTrials = 1000, seed = 42) {
     summary: {
       total: logs.length,
       passed: logs.filter(l => l.pass).length,
-      failed: logs.filter(l => !l.pass).length,
-      naiveBugsCaught: naiveFails,
-      verifiedBugs: verifiedFails
+      failed: logs.filter(l => !l.pass && !l.naiveBug).length,
+      naiveBugsCaught: logs.filter(l => l.naiveBug).length,
+      verifiedBugs: logs.filter(l => !l.pass && !l.naiveBug).length + verifiedFails
     }
   };
 }
@@ -322,7 +325,15 @@ class QuorumVerifier {
   }
   intersect(a, b) { const sb = new Set(b); return a.filter(x => sb.has(x)); }
   verifyAllPairs() {
+    // Degenerate configs are never safe: no honest quorum can even form when
+    // q > N - f (liveness fails) or the parameters are outside the model.
+    if (!Number.isSafeInteger(this.N) || !Number.isSafeInteger(this.f) ||
+        this.N < 1 || this.f < 0 || this.f >= this.N ||
+        this.q > this.N || this.N - this.f < this.q) {
+      return { safe: false, degenerate: true, reason: "no honest quorum can form" };
+    }
     const quorums = this.enumerateQuorums();
+    if (quorums.length === 0) return { safe: false, degenerate: true };
     for (let i = 0; i < quorums.length; i++)
       for (let j = i + 1; j < quorums.length; j++)
         if (this.intersect(quorums[i], quorums[j]).length < this.f + 1)
@@ -372,10 +383,10 @@ function verifyQuorum(fuzzTrials, seed) {
     logs.push({ test: "n3f1_verified_N7_f2", N: 7, f: 2, q: qvSafe.q, minInter: qvSafe.minIntersection(), safe: resSafe.safe, pass: resSafe.safe === true });
   }
 
-  // Test 2: Threshold sweep - with correct q=ceil((N+f+1)/2), ALL configs are safe
-  // because 2q-N = f+1 in every case. The N=3f vs N=3f+1 distinction matters for
-  // the NAIVE threshold q=2f (equivocation attack), not for the correct formula.
-  // So we verify the math holds and separately prove the equivocation bug below.
+  // Test 2: Threshold sweep - with correct q=ceil((N+f+1)/2) the pairwise
+  // intersection bound holds, but N=3f is still UNSAFE because an honest quorum
+  // cannot form (q > N - f, liveness fails). The full check must report safe
+  // only at N >= 3f + 1 - matching the formal verifier's prove_quorum.
   {
     let sweepPass = true;
     const sweepResults = [];
@@ -383,9 +394,8 @@ function verifyQuorum(fuzzTrials, seed) {
       for (const N of [3 * f, 3 * f + 1]) {
         const qv = new QuorumVerifier(N, f);
         const r = qv.verifyAllPairs();
-        // With correct q, every (N,f) with q=ceil((N+f+1)/2) passes honest intersection
-        const expectedSafe = true;
-        sweepResults.push({ N, f, q: qv.q, expectedSafe, actualSafe: r.safe });
+        const expectedSafe = N >= 3 * f + 1;
+        sweepResults.push({ N, f, q: qv.q, expectedSafe, actualSafe: r.safe, degenerate: !!r.degenerate });
         if (r.safe !== expectedSafe) sweepPass = false;
       }
     }
@@ -455,6 +465,26 @@ function verifyQuorum(fuzzTrials, seed) {
     logs.push({ test: `fuzz_N4_N10_all_configs`, checked: fuzzTotal, passed: fuzzPass, bugs: fuzzBugs.length, pass: fuzzBugs.length === 0 });
   }
 
+  // Test 3b: Seeded availability-equivalence fuzz - honors the trials/seed controls.
+  // Theorem: with q = ceil((N+f+1)/2), an honest quorum exists (N - f >= q) iff
+  // N >= 3f + 1. Fuzz random (N, f) pairs and check the equivalence both ways.
+  {
+    const rng = seededRandom(seed);
+    let mismatches = 0;
+    const seen = [];
+    for (let trial = 0; trial < fuzzTrials; trial++) {
+      const N = 4 + Math.floor(rng() * 24);
+      const f = 1 + Math.floor(rng() * Math.max(1, Math.floor(N / 2)));
+      const qv = new QuorumVerifier(N, f);
+      const honestCanForm = N - f >= qv.q;
+      if (honestCanForm !== qv.isSafeConfig()) {
+        mismatches++;
+        if (seen.length < 3) seen.push({ N, f, q: qv.q, honestCanForm, safe: qv.isSafeConfig() });
+      }
+    }
+    logs.push({ test: `fuzz_${fuzzTrials}_availability_equiv`, checked: fuzzTrials, mismatches, examples: seen, pass: mismatches === 0 });
+  }
+
   // Test 4: Equivocation matrix visualization data
   {
     const qv = new QuorumVerifier(6, 2);
@@ -493,7 +523,13 @@ function verifyQuorum(fuzzTrials, seed) {
 class BatteryArbitrage {
   constructor(C, R, d) { this.C = C; this.R = R; this.d = d; }
   profit(a, price) { return -a * price - Math.abs(a) * this.d; }
+  _checkInitSoc(initSoc) {
+    if (!Number.isSafeInteger(initSoc) || initSoc < 0 || initSoc > this.C) {
+      throw new RangeError(`initSoc must be an integer in [0, ${this.C}]`);
+    }
+  }
   solve(prices, initSoc = 0) {
+    this._checkInitSoc(initSoc);
     const T = prices.length;
     const V = Array.from({ length: T + 1 }, () => Array(this.C + 1).fill(0));
     const choice = Array.from({ length: T }, () => Array(this.C + 1).fill(0));
@@ -519,6 +555,7 @@ class BatteryArbitrage {
     return { maxProfit: V[0][initSoc], V, choice, path };
   }
   bruteForce(prices, initSoc = 0) {
+    this._checkInitSoc(initSoc);
     const T = prices.length;
     let bestProfit = -Infinity, bestPath = null;
     const dfs = (t, soc, profit, path) => {
@@ -535,6 +572,7 @@ class BatteryArbitrage {
     return { maxProfit: bestProfit, bestPath };
   }
   greedy(prices, initSoc = 0) {
+    this._checkInitSoc(initSoc);
     let soc = initSoc, total = 0;
     const path = [];
     for (let t = 0; t < prices.length; t++) {
@@ -748,7 +786,11 @@ async function runCustomCode(code, tests = [], timeoutMs = 1500) {
     frame.setAttribute("sandbox", "allow-scripts");
     frame.hidden = true;
     frame.src = new URL("js/execution-sandbox.html", document.baseURI).href;
-    const nonce = crypto.randomUUID();
+    // crypto.randomUUID needs a secure context; fall back to a random nonce so
+    // the sandbox still works when the page is served from an insecure origin.
+    const nonce = (crypto && typeof crypto.randomUUID === "function")
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
     let finished = false;
     function finish(result) {
       if (finished) return;

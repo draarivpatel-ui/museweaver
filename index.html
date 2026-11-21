@@ -6,75 +6,84 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MuseWeaver - Live Multi-Agent Code &amp; Math Verification Studio</title>
 <meta name="description" content="MuseWeaver - deterministic verification studio with local Z3 proofs, exact integer guardrails, illustrative agent traces, and isolated custom-code execution. Optional provider inference is opt-in.">
+<meta name="author" content="Aariv Patel">
+<meta name="theme-color" content="#0B0F17">
 <meta property="og:title" content="MuseWeaver - Live Multi-Agent Verification Studio">
 <meta property="og:description" content="Powered by meta-models/muse-spark-open-1026 via Baseten. Real deterministic verification in your browser.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://aariv.me/museweaver/">
+<meta name="twitter:card" content="summary">
 <link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B0F17'/%3E%3Ctext x='16' y='23' font-family='Georgia, serif' font-size='19' font-weight='700' fill='%233B82F6' text-anchor='middle'%3EM%3C/text%3E%3C/svg%3E">
 </head>
 <body>
+
+<a class="skip-link" href="#main">Skip to the verification studio</a>
 
 <!-- Top Header -->
 <header class="top-header">
   <div class="header-left">
-    <div class="logo"><span class="logo-mark">M</span> MuseWeaver</div>
+    <h1 class="logo"><span class="logo-mark">M</span> MuseWeaver</h1>
     <span class="model-badge"><span class="dot"></span>Local verification; optional Baseten inference</span>
   </div>
   <div class="header-center">
-    <div class="pipeline-indicator" id="pipeline-indicator">
+    <div class="pipeline-indicator" id="pipeline-indicator" aria-label="Verification pipeline progress">
       <div class="pipe-stage" data-stage="proposer"><span class="stage-dot"></span> Proposer</div>
-      <span class="pipe-arrow">&rsaquo;</span>
+      <span class="pipe-arrow" aria-hidden="true">&rsaquo;</span>
       <div class="pipe-stage" data-stage="skeptic"><span class="stage-dot"></span> Skeptic</div>
-      <span class="pipe-arrow">&rsaquo;</span>
+      <span class="pipe-arrow" aria-hidden="true">&rsaquo;</span>
       <div class="pipe-stage" data-stage="judge"><span class="stage-dot"></span> Judge</div>
     </div>
   </div>
   <div class="header-right">
-    <button class="btn btn-ghost btn-sm" id="api-settings-btn">Live API Settings</button>
+    <button class="btn btn-ghost btn-sm" id="api-settings-btn" aria-haspopup="dialog">Live API Settings</button>
     <button class="btn btn-primary" id="run-pipeline-btn">Run Multi-Agent Verification Pipeline</button>
   </div>
 </header>
 <p style="margin:12px 24px;color:var(--text-secondary)">Bundled agent traces are illustrative. Browser results are measured tests, not whole-program proofs. The Python verifier produces local Z3 certificates for its restricted proposal language.</p>
 
+<main id="main">
 <!-- Scenario Selector -->
-<div class="scenario-bar" id="scenario-bar">
-  <div class="scenario-card active" data-scenario="rate-limiter">
+<div class="scenario-bar" id="scenario-bar" role="group" aria-label="Verification scenarios">
+  <button type="button" class="scenario-card active" data-scenario="rate-limiter">
     <span class="sc-badge badge-concurrency">CONCURRENCY</span>
-    <div class="sc-title">Exact Integer Token Bucket Rate Limiter</div>
-    <div class="sc-desc">Float-drift &amp; burst-boundary race condition audit across 1,000 concurrent requests</div>
-  </div>
-  <div class="scenario-card" data-scenario="quorum">
+    <span class="sc-title">Exact Integer Token Bucket Rate Limiter</span>
+    <span class="sc-desc">Float-drift &amp; burst-boundary race condition audit across 1,000 concurrent requests</span>
+  </button>
+  <button type="button" class="scenario-card" data-scenario="quorum">
     <span class="sc-badge badge-consensus">CONSENSUS</span>
-    <div class="sc-title">Byzantine Quorum Consensus Threshold</div>
-    <div class="sc-desc">Why N=3f fails under equivocation &amp; N=3f+1 quorum intersection proof</div>
-  </div>
-  <div class="scenario-card" data-scenario="battery">
+    <span class="sc-title">Byzantine Quorum Consensus Threshold</span>
+    <span class="sc-desc">Why N=3f fails under equivocation &amp; N=3f+1 quorum intersection proof</span>
+  </button>
+  <button type="button" class="scenario-card" data-scenario="battery">
     <span class="sc-badge badge-optimization">OPTIMIZATION</span>
-    <div class="sc-title">Battery Arbitrage with Degradation</div>
-    <div class="sc-desc">Bellman optimality, greedy counterexample &amp; brute-force cross-check</div>
-  </div>
-  <div class="scenario-card" data-scenario="custom">
+    <span class="sc-title">Battery Arbitrage with Degradation</span>
+    <span class="sc-desc">Bellman optimality, greedy counterexample &amp; brute-force cross-check</span>
+  </button>
+  <button type="button" class="scenario-card" data-scenario="custom" aria-expanded="false" aria-controls="custom-composer">
     <span class="sc-badge badge-custom">CUSTOM</span>
-    <div class="sc-title">Custom Task Composer</div>
-    <div class="sc-desc">Write your own verification task - AI analysis + live execution</div>
-  </div>
+    <span class="sc-title">Custom Task Composer</span>
+    <span class="sc-desc">Write your own verification task - live model analysis + sandboxed execution</span>
+  </button>
 </div>
 
 <!-- Custom Task Composer (expandable) -->
-<div class="custom-composer" id="custom-composer">
+<div class="custom-composer" id="custom-composer" role="region" aria-label="Custom task composer">
   <div class="custom-field">
-    <label>Task Title</label>
+    <label for="custom-title">Task Title</label>
     <input type="text" id="custom-title" placeholder="e.g., Verify my sorting algorithm">
   </div>
   <div class="custom-field">
-    <label>Description / Spec</label>
+    <label for="custom-desc">Description / Spec</label>
     <input type="text" id="custom-desc" placeholder="Describe what to verify...">
   </div>
   <div class="custom-field full">
-    <label>Code (JavaScript)</label>
+    <label for="custom-code">Code (JavaScript)</label>
     <textarea id="custom-code" placeholder="// Write or paste your code here&#10;function myFunction(x) {&#10;  return x * 2;&#10;}&#10;// Use assert(condition, &quot;message&quot;) and log(&quot;...&quot;) for tests"></textarea>
   </div>
   <div style="display:flex;gap:10px;align-items:center;flex-basis:100%">
     <button class="btn btn-primary" id="custom-run-btn">Run Custom Verification</button>
-    <span id="custom-status"></span>
+    <span id="custom-status" role="status" aria-live="polite"></span>
   </div>
 </div>
 
@@ -92,7 +101,7 @@
       <div class="reasoning-block" id="proposer-reasoning">
         <div class="reasoning-header">
           <span>Reasoning Trace (reasoning_content)</span>
-          <button class="reasoning-toggle" id="reasoning-toggle">Expand reasoning trace</button>
+          <button class="reasoning-toggle" id="reasoning-toggle" aria-expanded="false" aria-controls="reasoning-text">Expand reasoning trace</button>
         </div>
         <div class="reasoning-text collapsed" id="reasoning-text"></div>
       </div>
@@ -101,11 +110,11 @@
       <div class="code-block">
         <div class="code-header">
           <span>Proposed Algorithm / Code</span>
-          <span style="font-size:10px;color:var(--text-dim)">editable - click Run to re-verify</span>
+          <span style="font-size:10px;color:var(--text-dim)">editable - click Run to execute it in the sandbox</span>
         </div>
-        <textarea class="code-textarea" id="proposer-code" spellcheck="false"></textarea>
+        <textarea class="code-textarea" id="proposer-code" spellcheck="false" aria-label="Proposed algorithm code"></textarea>
         <div class="code-actions">
-          <button class="btn btn-primary btn-sm" id="run-custom-btn">Run Verification Suite (1,000 Fuzz Trials)</button>
+          <button class="btn btn-primary btn-sm" id="run-custom-btn">Run Edited Code in Sandbox</button>
           <button class="btn btn-ghost btn-sm" id="reset-code-btn">Reset</button>
         </div>
       </div>
@@ -113,7 +122,7 @@
       <!-- Invariants -->
       <div class="invariants-block">
         <div class="invariants-header">Extracted Formal Invariants</div>
-        <div id="proposer-invariants"></div>
+        <div id="proposer-invariants" role="group" aria-label="Extracted formal invariants"></div>
       </div>
 
     </div>
@@ -141,13 +150,14 @@
         <div class="execution-header">
           <span>Real In-Browser Execution Engine</span>
           <div class="fuzz-controls">
+            <label class="visually-hidden" for="fuzz-trials-input">Fuzz trial count</label>
             <input type="range" id="fuzz-trials-input" min="100" max="5000" step="100" value="1000">
-            <label id="fuzz-trials-label">1000 trials</label>
+            <output id="fuzz-trials-label" for="fuzz-trials-input">1000 trials</output>
             <button class="btn btn-primary btn-sm" id="rerun-btn">Re-run</button>
           </div>
         </div>
         <div class="execution-metrics" id="execution-metrics"></div>
-        <div class="execution-results" id="execution-results">
+        <div class="execution-results" id="execution-results" aria-live="polite">
           <div class="empty-state">Click <strong>Run Multi-Agent Verification Pipeline</strong> to execute verification live in your browser.</div>
         </div>
         <div class="execution-logs" id="execution-logs"></div>
@@ -166,12 +176,12 @@
       <!-- DAG -->
       <div class="dag-container">
         <div class="dag-header">Interactive Proof &amp; Dependency DAG</div>
-        <div id="proof-dag"></div>
-        <div class="dag-detail" id="dag-detail" style="display:none"></div>
+        <div id="proof-dag" role="group" aria-label="Proof dependency graph"></div>
+        <div class="dag-detail" id="dag-detail" style="display:none" aria-live="polite"></div>
       </div>
 
       <!-- Verdict -->
-      <div id="judge-verdict">
+      <div id="judge-verdict" aria-live="polite">
         <div class="empty-state">Run the pipeline to inspect measured test results. Formal proofs run through the Python Z3 verifier.</div>
       </div>
 
@@ -180,26 +190,28 @@
         <button class="btn btn-primary" id="export-report-btn" style="flex:1">Export Verification Report</button>
         <button class="btn btn-ghost" id="permalink-btn">Copy Shareable Permalink</button>
       </div>
+      <p class="export-note" id="export-note" role="status" aria-live="polite"></p>
 
     </div>
   </div>
 
 </div>
+</main>
 
 <!-- Footer -->
 <footer class="app-footer">
-  MuseWeaver - Built for the Meta Global AI Developer Hackathon on Cerebral Valley &middot;
+  MuseWeaver - Built for the Meta Global Developer Hackathon on Cerebral Valley &middot;
   Model: <code>meta-models/muse-spark-open-1026</code> via Baseten &middot;
   <a href="https://github.com/draarivpatel-ui/museweaver" target="_blank" rel="noopener">GitHub</a> &middot;
   Runs 100% on GitHub Pages &amp; <code>python3 -m http.server</code> with zero console errors
 </footer>
 
 <!-- API Settings Modal -->
-<div class="api-modal" id="api-modal">
+<div class="api-modal" id="api-modal" role="dialog" aria-modal="true" aria-labelledby="api-modal-title">
   <div class="api-modal-card">
     <div class="api-modal-header">
-      <h3>Live API Settings</h3>
-      <button class="api-modal-close" id="api-modal-close">&times;</button>
+      <h3 id="api-modal-title">Live API Settings</h3>
+      <button class="api-modal-close" id="api-modal-close" aria-label="Close settings">&times;</button>
     </div>
     <div class="api-modal-body">
       <label>
@@ -209,10 +221,10 @@
       </label>
       <label>
         Inference URL
-        <input type="text" id="api-url-input" placeholder="https://inference.baseten.co/v1/chat/completions">
-        <span class="hint">Use <code>http://localhost:20128/v1/chat/completions</code> for local OmniRoute proxy.</span>
+        <input type="text" id="api-url-input" autocomplete="off" spellcheck="false" placeholder="https://inference.baseten.co/v1/chat/completions">
+        <span class="hint">Use <code>http://localhost:20128/v1/chat/completions</code> for a local inference proxy.</span>
       </label>
-      <div id="api-modal-status"></div>
+      <div id="api-modal-status" role="status" aria-live="polite"></div>
     </div>
     <div class="api-modal-footer">
       <button class="btn btn-ghost" id="api-modal-test">Test Connection</button>

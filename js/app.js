@@ -36,9 +36,6 @@ const SCENARIOS = {
   }
 };
 
-// Custom task state
-let customTask = null;
-
 // ============================================================
 // DOM Ready
 // ============================================================
@@ -48,6 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initComparisonToggle();
   initApiModal();
   initDag();
+  initInvariantRows();
   initReportExport();
   initPermalink();
   initCodeEdit();
@@ -67,7 +65,9 @@ function initScenarioSelector() {
     card.addEventListener("click", () => {
       const id = card.dataset.scenario;
       if (id === "custom") {
-        document.getElementById("custom-composer").classList.toggle("open");
+        const composer = document.getElementById("custom-composer");
+        const open = composer.classList.toggle("open");
+        card.setAttribute("aria-expanded", String(open));
         return;
       }
       selectScenario(id);
@@ -78,10 +78,13 @@ function initScenarioSelector() {
 function selectScenario(id) {
   if (!CAPTURED_TRACES[id] && id !== "custom") return;
   currentScenario = id;
+  dagSelectedNode = null;
 
   // Update card active state
   document.querySelectorAll(".scenario-card").forEach(c => {
-    c.classList.toggle("active", c.dataset.scenario === id);
+    const selected = c.dataset.scenario === id;
+    c.classList.toggle("active", selected);
+    if (c.dataset.scenario !== "custom") c.setAttribute("aria-pressed", String(selected));
   });
 
   // Update pipeline indicator
@@ -121,9 +124,11 @@ function loadProposerColumn(id) {
     reasoningText.classList.add("collapsed");
     if (reasoningToggle) {
       reasoningToggle.textContent = "Expand reasoning trace";
+      reasoningToggle.setAttribute("aria-expanded", "false");
       reasoningToggle.onclick = () => {
         const collapsed = reasoningText.classList.toggle("collapsed");
         reasoningToggle.textContent = collapsed ? "Expand reasoning trace" : "Collapse reasoning trace";
+        reasoningToggle.setAttribute("aria-expanded", String(!collapsed));
       };
     }
   }
@@ -139,18 +144,18 @@ function loadProposerColumn(id) {
   const invEl = document.getElementById("proposer-invariants");
   if (invEl) {
     invEl.innerHTML = trace.proposer.invariants.map(inv =>
-      `<div class="invariant-row" data-invariant="${inv.id}" onclick="highlightInvariant('${inv.id}')">
-        <span class="inv-id">${inv.id}</span>
-        <span class="inv-name">${inv.name}</span>
-        <span class="inv-formula">${inv.formula}</span>
-        <span class="inv-status verified">${inv.status}</span>
+      `<div class="invariant-row" data-invariant="${escapeHtml(inv.id)}" tabindex="0" role="button">
+        <span class="inv-id">${escapeHtml(inv.id)}</span>
+        <span class="inv-name">${escapeHtml(inv.name)}</span>
+        <span class="inv-formula">${escapeHtml(inv.formula)}</span>
+        <span class="inv-status verified">${escapeHtml(inv.status)}</span>
       </div>`
     ).join("");
   }
 
   // Title
   const titleEl = document.getElementById("proposer-title");
-  if (titleEl) titleEl.textContent = `1. Proposer Agent - ${trace.title}`;
+  if (titleEl) titleEl.textContent = `Proposer Agent - ${trace.title}`;
 
   // Skeptic critique
   const skepticEl = document.getElementById("skeptic-critique");
@@ -160,11 +165,29 @@ function loadProposerColumn(id) {
   if (skepticTestsEl) {
     skepticTestsEl.innerHTML = trace.skeptic.testCases.map(tc =>
       `<div class="test-case-row">
-        <span class="tc-name">${tc.name}</span>
-        <span class="tc-desc">${tc.desc}</span>
+        <span class="tc-name">${escapeHtml(tc.name)}</span>
+        <span class="tc-desc">${escapeHtml(tc.desc)}</span>
       </div>`
     ).join("");
   }
+}
+
+// Invariant rows are clickable and keyboard-operable; wired by delegation so
+// the page needs no inline handlers (the CSP forbids them).
+function initInvariantRows() {
+  const invEl = document.getElementById("proposer-invariants");
+  if (!invEl) return;
+  const activate = (event) => {
+    const row = event.target.closest(".invariant-row");
+    if (row) highlightInvariant(row.dataset.invariant);
+  };
+  invEl.addEventListener("click", activate);
+  invEl.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      activate(event);
+    }
+  });
 }
 
 function resetSkepticColumn() {
@@ -199,6 +222,13 @@ async function runPipeline() {
   const btn = document.getElementById("run-pipeline-btn");
   btn.disabled = true;
   btn.innerHTML = `<span class="spinner"></span> Running pipeline...`;
+
+  if (!CAPTURED_TRACES[currentScenario]) {
+    pipelineRunning = false;
+    btn.disabled = false;
+    btn.innerHTML = `Run Multi-Agent Verification Pipeline`;
+    return;
+  }
 
   const trials = parseInt(document.getElementById("fuzz-trials-input")?.value || "1000", 10);
 
@@ -323,7 +353,7 @@ function renderExecutionResults(result) {
       for (const [k, v] of Object.entries(entry)) {
         if (k === "test" || k === "pass" || k === "detail" || k === "counterexample") continue;
         if (typeof v === "object") continue; // skip complex objects in compact view
-        fields.push(`<span class="log-field"><span class="log-field-k">${k}</span>=<span class="log-field-v">${escapeHtml(String(v))}</span></span>`);
+        fields.push(`<span class="log-field"><span class="log-field-k">${escapeHtml(k)}</span>=<span class="log-field-v">${escapeHtml(String(v))}</span></span>`);
       }
       return `<div class="log-entry ${statusClass}">
         <span class="log-status">${statusIcon}</span>
@@ -371,9 +401,11 @@ function renderJudgeVerdict(result) {
 function initComparisonToggle() {
   const toggle = document.getElementById("compare-toggle");
   if (!toggle) return;
+  toggle.setAttribute("aria-pressed", "false");
   toggle.addEventListener("click", () => {
     comparisonMode = !comparisonMode;
     toggle.classList.toggle("active", comparisonMode);
+    toggle.setAttribute("aria-pressed", String(comparisonMode));
     toggle.textContent = comparisonMode ? "Showing: Naive vs Verified" : "Compare Naive vs Verified";
     if (comparisonMode && lastResult) {
       renderComparison(lastResult);
@@ -489,8 +521,8 @@ function renderDag(scenarioId, result) {
     let fill = "#1E293B";
     let stroke = "#334155";
     if (isVerdict && hasResult) {
-      fill = result.summary.failed === 0 ? "#064E3B" : "#7F1D1D";
-      stroke = result.summary.failed === 0 ? "#10B981" : "#EF4444";
+      fill = result.summary.verifiedBugs === 0 ? "#064E3B" : "#7F1D1D";
+      stroke = result.summary.verifiedBugs === 0 ? "#10B981" : "#EF4444";
     } else if (isSelected) {
       stroke = "#3B82F6";
       fill = "#1E3A5F";
@@ -499,7 +531,8 @@ function renderDag(scenarioId, result) {
       stroke = "#3B82F6";
     }
 
-    svg += `<g class="dag-node ${isSelected ? 'selected' : ''}" data-node="${n.id}" style="cursor:pointer">
+    svg += `<g class="dag-node ${isSelected ? 'selected' : ''}" data-node="${n.id}" style="cursor:pointer"
+      tabindex="0" role="button" aria-label="${escSvg(n.label)}: ${escSvg(n.sub)}">
       <rect x="${n.x - 58}" y="${n.y - 14}" width="116" height="36" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="${isSelected ? 2 : 1.2}" />
       <text x="${n.x}" y="${n.y}" text-anchor="middle" fill="#F1F5F9" font-size="10" font-weight="600" font-family="Inter,sans-serif">${escSvg(n.label)}</text>
       <text x="${n.x}" y="${n.y + 11}" text-anchor="middle" fill="#94A3B8" font-size="8" font-family="JetBrains Mono,monospace">${escSvg(n.sub)}</text>
@@ -509,13 +542,20 @@ function renderDag(scenarioId, result) {
   svg += `</svg>`;
   container.innerHTML = svg;
 
-  // Bind clicks
+  // Bind clicks and keyboard activation
   container.querySelectorAll(".dag-node").forEach(el => {
-    el.addEventListener("click", () => {
+    const selectNode = () => {
       const nodeId = el.dataset.node;
       dagSelectedNode = dagSelectedNode === nodeId ? null : nodeId;
       renderDag(scenarioId, result);
       highlightForDagNode(nodeId);
+    };
+    el.addEventListener("click", selectNode);
+    el.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        selectNode();
+      }
     });
   });
 
@@ -526,7 +566,7 @@ function renderDag(scenarioId, result) {
       const node = nodes.find(n => n.id === dagSelectedNode);
       detailEl.innerHTML = `<div class="dag-detail-card">
         <strong>${escapeHtml(node.label)}</strong> - ${escapeHtml(node.sub)}
-        ${node.invariant ? `<br><span class="dag-inv-tag">${node.invariant}</span> linked to invariant verification` : ""}
+        ${node.invariant ? `<br><span class="dag-inv-tag">${escapeHtml(node.invariant)}</span> linked to invariant verification` : ""}
       </div>`;
       detailEl.style.display = "block";
     } else {
@@ -544,13 +584,13 @@ function highlightForDagNode(nodeId) {
     const row = document.querySelector(`.invariant-row[data-invariant="${invId}"]`);
     if (row) {
       row.classList.add("inv-highlight");
-      row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      row.scrollIntoView({ block: "nearest" });
     }
   }
   // Scroll to relevant log section
   if (nodeId === "fuzz" || nodeId === "verdict") {
     const logsEl = document.getElementById("execution-logs");
-    if (logsEl) logsEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (logsEl) logsEl.scrollIntoView({ block: "nearest" });
   }
 }
 
@@ -578,11 +618,31 @@ function initApiModal() {
     const urlInput = document.getElementById("api-url-input");
     if (keyInput) keyInput.value = MUSE_RUNTIME_SETTINGS.apiKey;
     if (urlInput) urlInput.value = MUSE_RUNTIME_SETTINGS.baseUrl;
+    if (keyInput) keyInput.focus();
   });
 
-  function closeModal() { modal.classList.remove("open"); }
+  function closeModal() {
+    modal.classList.remove("open");
+    btn.focus();
+  }
   if (closeBtn) closeBtn.addEventListener("click", closeModal);
   modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+  document.addEventListener("keydown", (e) => {
+    if (!modal.classList.contains("open")) return;
+    if (e.key === "Escape") { closeModal(); return; }
+    if (e.key !== "Tab") return;
+    // Trap focus inside the dialog while it is open.
+    const focusables = [...modal.querySelectorAll("input, button, [tabindex]")]
+      .filter(el => !el.disabled && el.offsetParent !== null);
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault(); last.focus();
+    } else if (!e.shiftKey && (document.activeElement === last || !modal.contains(document.activeElement))) {
+      e.preventDefault(); first.focus();
+    }
+  });
 
   if (saveBtn) saveBtn.addEventListener("click", () => {
     const keyInput = document.getElementById("api-key-input");
@@ -620,16 +680,35 @@ function initApiModal() {
 function initReportExport() {
   const btn = document.getElementById("export-report-btn");
   if (!btn) return;
-  btn.addEventListener("click", exportReport);
+  btn.addEventListener("click", () => { exportReport(); });
 }
 
-function exportReport() {
+async function sha256Hex(text) {
+  if (!crypto?.subtle) return null;
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function exportReport() {
+  const note = document.getElementById("export-note");
   if (!lastResult) {
-    alert("Run the verification pipeline first to generate a report.");
+    if (note) note.textContent = "Run the verification pipeline first to generate a report.";
     return;
   }
   const trace = CAPTURED_TRACES[currentScenario];
   const scenario = SCENARIOS[currentScenario];
+
+  const payload = {
+    scenario: currentScenario,
+    traceProvenance: "Bundled illustrative traces, not authenticated model inference evidence",
+    generated: new Date().toISOString(),
+    result: lastResult,
+    invariants: trace.proposer.invariants
+  };
+  const canonical = JSON.stringify(payload);
+  const hash = await sha256Hex(canonical);
+  if (hash) payload.integrity = { algorithm: "SHA-256", canonicalJsonSha256: hash };
+  const payloadJson = JSON.stringify(payload, null, 2);
 
   const md = `# MuseWeaver Verification Report
 
@@ -653,10 +732,17 @@ ${lastResult.counterexample ? `## Counterexample\n\n\`\`\`\n${lastResult.counter
 
 \`[Problem Spec] -> [Proposer Patch] -> [I_1, I_2, I_3] -> [Skeptic Fuzz Suite] -> [Verified Verdict]\`
 
+## Export Payload (JSON)
+
+\`\`\`json
+${payloadJson}
+\`\`\`
+
 ## Reproducibility
 
 All verification runs deterministically in-browser via \`js/verifier.js\` with seeded PRNG.
 Re-run with \`runVerification("${currentScenario}", { trials: 1000, seed: 42 })\` in the console.
+${hash ? `The SHA-256 above is computed over the canonical JSON payload (the \`integrity\` field excluded).` : "SHA-256 integrity unavailable in this browsing context."}
 
 ---
 *Generated by MuseWeaver - Live Multi-Agent Code & Math Verification Studio*
@@ -672,16 +758,28 @@ Re-run with \`runVerification("${currentScenario}", { trials: 1000, seed: 42 })\
   a.click();
   URL.revokeObjectURL(url);
 
-  // Also offer JSON
-  const jsonData = {
-    scenario: currentScenario,
-    model: "meta-models/muse-spark-open-1026",
-    timestamp: new Date().toISOString(),
-    result: lastResult,
-    invariants: trace.proposer.invariants
-  };
-  // Store for copy
-  window._lastReportJson = JSON.stringify(jsonData, null, 2);
+  if (note) {
+    note.textContent = "Report downloaded.";
+    setTimeout(() => { note.textContent = ""; }, 3000);
+  }
+}
+
+function copyTextFallback(text) {
+  const helper = document.createElement("textarea");
+  helper.value = text;
+  helper.setAttribute("readonly", "");
+  helper.style.position = "fixed";
+  helper.style.opacity = "0";
+  document.body.appendChild(helper);
+  helper.select();
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } catch {
+    copied = false;
+  }
+  helper.remove();
+  return copied;
 }
 
 function initPermalink() {
@@ -691,13 +789,20 @@ function initPermalink() {
     const url = new URL(window.location.href);
     url.searchParams.set("scenario", currentScenario);
     if (lastResult) url.searchParams.set("t", String(lastResult.summary.total));
-    navigator.clipboard.writeText(url.toString()).then(() => {
+    const text = url.toString();
+    const flash = (label) => {
       const orig = btn.textContent;
-      btn.textContent = "Copied!";
+      btn.textContent = label;
       setTimeout(() => btn.textContent = orig, 1500);
-    }).catch(() => {
-      prompt("Copy this link:", url.toString());
-    });
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(
+        () => flash("Copied!"),
+        () => flash(copyTextFallback(text) ? "Copied!" : "Copy blocked")
+      );
+    } else {
+      flash(copyTextFallback(text) ? "Copied!" : "Copy blocked");
+    }
   });
 }
 
@@ -725,6 +830,13 @@ function initCodeEdit() {
     const verdict = document.getElementById("judge-verdict");
     if (verdict) verdict.textContent = "Edited code executed in isolation. These custom assertions are not a formal verification certificate.";
     lastResult = null;
+    // Clear the previous run's verdict artifacts so no stale metrics survive.
+    const metricsEl = document.getElementById("execution-metrics");
+    if (metricsEl) metricsEl.innerHTML = "";
+    const resultsEl = document.getElementById("execution-results");
+    if (resultsEl) resultsEl.innerHTML = `<div class="empty-state">Sandbox execution of your edited code - run the pipeline for bundled verification.</div>`;
+    dagSelectedNode = null;
+    renderDag(currentScenario, null);
   });
 
   if (resetBtn) resetBtn.addEventListener("click", () => {
@@ -786,9 +898,9 @@ function initCustomComposer() {
       if (code) {
         const execResult = await runCustomCode(code, []);
         renderCustomExecution(execResult, null);
-        if (statusEl) { statusEl.textContent = execResult.error ? `Error: ${execResult.error}` : "Executed locally (no API key - add one in Live API Settings for AI analysis)."; statusEl.className = execResult.error ? "api-status err" : "api-status ok"; }
+        if (statusEl) { statusEl.textContent = execResult.error ? `Error: ${execResult.error}` : "Executed locally (no API key - add one in Live API Settings for live model analysis)."; statusEl.className = execResult.error ? "api-status err" : "api-status ok"; }
       } else {
-        if (statusEl) { statusEl.textContent = "Add code to execute, or configure an API key for AI-powered analysis."; statusEl.className = "api-status err"; }
+        if (statusEl) { statusEl.textContent = "Add code to execute, or configure an API key for live model analysis."; statusEl.className = "api-status err"; }
       }
     }
   });
@@ -808,7 +920,7 @@ function renderCustomExecution(execResult, aiContent) {
     if (resultsEl) resultsEl.innerHTML = `<div class="verified-banner"><span class="ce-icon">&#9673;</span> Custom execution: ${execResult.assertions.filter(a => a.pass).length}/${execResult.assertions.length} assertions passed in ${execResult.elapsed}ms</div>`;
   }
   if (aiContent && verdictEl) {
-    verdictEl.innerHTML = `<div class="verdict-card verdict-pass"><div class="verdict-text">AI ANALYSIS</div><div class="verdict-detail" style="white-space:pre-wrap;text-align:left;max-height:300px;overflow:auto">${escapeHtml(aiContent.slice(0, 3000))}</div></div>`;
+    verdictEl.innerHTML = `<div class="verdict-card verdict-pass"><div class="verdict-text">LIVE MODEL ANALYSIS</div><div class="verdict-detail" style="white-space:pre-wrap;text-align:left;max-height:300px;overflow:auto">${escapeHtml(aiContent.slice(0, 3000))}</div></div>`;
   }
 }
 
@@ -825,7 +937,7 @@ function initFuzzControls() {
   // Re-run button
   const rerunBtn = document.getElementById("rerun-btn");
   if (rerunBtn) rerunBtn.addEventListener("click", () => {
-    if (currentScenario === "custom" && customTask) return;
+    if (currentScenario === "custom") return;
     runPipeline();
   });
 }
@@ -836,7 +948,7 @@ function initFuzzControls() {
 function escapeHtml(s) {
   const d = document.createElement("div");
   d.textContent = s;
-  return d.innerHTML;
+  return d.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 function escSvg(s) {
