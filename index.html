@@ -186,8 +186,8 @@
       </div>
 
       <!-- Export -->
-      <div style="display:flex;gap:10px">
-        <button class="btn btn-primary" id="export-report-btn" style="flex:1">Export Verification Report</button>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="export-report-btn" style="flex:1;min-width:180px">Export Verification Report</button>
         <button class="btn btn-ghost" id="permalink-btn">Copy Shareable Permalink</button>
       </div>
       <p class="export-note" id="export-note" role="status" aria-live="polite"></p>
@@ -196,6 +196,75 @@
   </div>
 
 </div>
+
+<!-- Ablation & Phase-Plane Workbench -->
+<section id="ablation-lab" class="lab-section" aria-labelledby="lab-title" hidden>
+  <h2 id="lab-title" class="lab-title">Ablation &amp; Phase-Plane Workbench</h2>
+  <div class="lab-grid">
+
+    <div class="lab-card">
+      <div class="lab-card-head">
+        <h3>Mutant Ablation Matrix</h3>
+      </div>
+      <div class="lab-tabs" id="lab-domain-tabs" role="tablist" aria-label="Filter mutants by domain">
+        <button type="button" role="tab" class="lab-tab active" data-tab="all" aria-selected="true">All Domains</button>
+        <button type="button" role="tab" class="lab-tab" data-tab="token" aria-selected="false">Token Bucket</button>
+        <button type="button" role="tab" class="lab-tab" data-tab="quorum" aria-selected="false">Quorum</button>
+        <button type="button" role="tab" class="lab-tab" data-tab="battery" aria-selected="false">Battery</button>
+      </div>
+      <div id="lab-matrix" role="group" aria-label="Policy comparator matrix"></div>
+      <div id="lab-witness" class="lab-witness" aria-live="polite">
+        <div class="empty-state">Select a mutant row to inspect the exact counterexample each gate produced.</div>
+      </div>
+    </div>
+
+    <div class="lab-card">
+      <div class="lab-card-head">
+        <h3>Quorum Safety-Liveness Phase Plane</h3>
+      </div>
+      <div class="lab-plane-controls">
+        <label for="lab-n-input">Nodes N</label>
+        <input type="range" id="lab-n-input" min="3" max="20" step="1" value="6">
+        <output id="lab-n-label" for="lab-n-input">N=6</output>
+        <span class="lab-legend"><span class="lab-chip lab-chip-safe">safe</span><span class="lab-chip lab-chip-sb">split-brain</span><span class="lab-chip lab-chip-dl">deadlock</span><span class="lab-chip lab-chip-doomed">doomed</span></span>
+      </div>
+      <div id="lab-phase-wrap" role="group" aria-label="Quorum phase plane grid"></div>
+      <div id="lab-cell-detail" class="lab-witness" aria-live="polite">
+        <div class="empty-state">Click or arrow through a grid cell for the concrete split-brain or stall witness.</div>
+      </div>
+    </div>
+
+    <div class="lab-card">
+      <div class="lab-card-head">
+        <h3>Audited Certificate</h3>
+      </div>
+      <div class="lab-cert-row">
+        <span class="lab-cert-label">SHA-256</span>
+        <code id="lab-digest" class="lab-digest"></code>
+      </div>
+      <div class="lab-cert-actions">
+        <button type="button" class="btn btn-primary btn-sm" id="lab-cert-json">JSON</button>
+        <button type="button" class="btn btn-primary btn-sm" id="lab-cert-csv">CSV</button>
+        <button type="button" class="btn btn-primary btn-sm" id="lab-cert-md">Markdown</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="lab-hash-copy">Copy #mw= Link</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="lab-tamper-btn">Verify + Tamper Demo</button>
+      </div>
+      <div id="lab-cert-note" class="lab-cert-note" role="status" aria-live="polite"></div>
+    </div>
+
+    <div class="lab-card">
+      <div class="lab-card-head">
+        <h3>In-Page Self-Tests</h3>
+        <button type="button" class="btn btn-ghost btn-sm" id="lab-selftest-btn">Run deterministic checks</button>
+      </div>
+      <div id="lab-selftest" aria-live="polite">
+        <div class="empty-state">SHA-256 known-answer tests, constructive split-brain witnesses, DP vs brute force, codec and tamper checks.</div>
+      </div>
+    </div>
+
+  </div>
+  <p class="lab-scope-note">Deterministic mathematical checks over a fixed 12-mutant catalog and bounded parameter ranges. Certificates cover the listed cells only, not the whole application.</p>
+</section>
 </main>
 
 <!-- Footer -->
@@ -236,5 +305,7 @@
 <script src="js/captured-traces.js"></script>
 <script src="js/verifier.js"></script>
 <script src="js/app.js"></script>
+<script src="js/ablation-lab.js"></script>
+<script src="js/lab-ui.js"></script>
 </body>
 </html>

@@ -669,7 +669,7 @@ test("export report embeds a JSON payload with an integrity hash", () => {
 /* ---------------- shipped content hygiene ---------------- */
 
 test("shipped text files carry no em dashes or en dashes", () => {
-  const files = ["index.html", "styles.css", "js/app.js", "js/verifier.js", "js/captured-traces.js", "js/execution-sandbox.html", "README.md", "formal_verifier.py"];
+  const files = ["index.html", "styles.css", "js/app.js", "js/verifier.js", "js/captured-traces.js", "js/ablation-lab.js", "js/lab-ui.js", "js/execution-sandbox.html", "README.md", "formal_verifier.py"];
   for (const rel of files) {
     const text = fs.readFileSync(path.join(root, rel), "utf8");
     const dash = new RegExp("[" + String.fromCharCode(0x2013, 0x2014, 0x2015) + "]|&(?:en|mn)dash;", "i");
@@ -678,7 +678,7 @@ test("shipped text files carry no em dashes or en dashes", () => {
 });
 
 test("shipped files contain no private paths, emails or credential prefixes", () => {
-  const files = ["index.html", "styles.css", "js/app.js", "js/verifier.js", "js/captured-traces.js", "README.md"];
+  const files = ["index.html", "styles.css", "js/app.js", "js/verifier.js", "js/captured-traces.js", "js/ablation-lab.js", "js/lab-ui.js", "README.md"];
   for (const rel of files) {
     const text = fs.readFileSync(path.join(root, rel), "utf8");
     assert.equal(/\/Users\/|\/home\//.test(text), false, `${rel} home path`);
@@ -688,7 +688,7 @@ test("shipped files contain no private paths, emails or credential prefixes", ()
 });
 
 test("no authorship disclosures or helper tool names leak into shipped files", () => {
-  const files = ["index.html", "styles.css", "js/app.js", "js/verifier.js", "js/captured-traces.js", "README.md"];
+  const files = ["index.html", "styles.css", "js/app.js", "js/verifier.js", "js/captured-traces.js", "js/ablation-lab.js", "js/lab-ui.js", "README.md"];
   const disclosure = new RegExp(
     "\\b(?:\\x43laude|\\x43ursor|\\x43opilot|\\x43hat\\x47\\x50\\x54|\\x47\\x50\\x54|\\x47emini|\\x43odex|\\x41nthropic|\\x4fpen\\x41\\x49|\\x44evin|\\x4fmni\\x52oute|\\x41gent\\x52outer|\\x4eemotron|vibe ?cod(?:e|ing))\\b" +
       "|\\b\\x41\\x49\\b|\\x41\\x49[ -](?:assisted|generated|written)|generated (?:by|with) (?:an? )?(?:\\x41\\x49|\\x4c\\x4c\\x4d|language model)",
@@ -701,9 +701,9 @@ test("no authorship disclosures or helper tool names leak into shipped files", (
 });
 
 test("no placeholders, debug leftovers or dead code markers remain", () => {
-  const shipped = `${indexHtml}\n${stylesCss}\n${appJs}\n${verifierSrc}\n${tracesSrc}`;
+  const shipped = `${indexHtml}\n${stylesCss}\n${appJs}\n${verifierSrc}\n${tracesSrc}\n${fs.readFileSync(path.join(root, "js/ablation-lab.js"), "utf8")}\n${fs.readFileSync(path.join(root, "js/lab-ui.js"), "utf8")}`;
   assert.equal(/\b(?:TODO|FIXME|XXX|HACK|lorem ipsum)\b/i.test(shipped), false);
-  assert.equal(/console\.log\(/.test(appJs + verifierSrc + tracesSrc), false);
+  assert.equal(/console\.log\(/.test(shipped), false);
   assert.equal(/_lastReportJson/.test(appJs), false);
 });
 

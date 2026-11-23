@@ -18,6 +18,8 @@ python3 -m venv .venv
 npm test
 ```
 
+`npm test` runs 582 Node regression tests covering the verifier, the sandbox, the ablation lab, page markup and shipped-content hygiene.
+
 Browser regression tests use a throwaway headless Chromium profile. On Linux, install the test browser with `.venv/bin/python -m playwright install --with-deps chromium`.
 
 ## What is actually verified
@@ -41,6 +43,16 @@ The three scenarios remain available.
 Seed zero is supported, fuzz controls are bounded, and the displayed duration is measured. Expected failures in a deliberately flawed baseline are distinct from violations in the tested implementation.
 
 The Proposer, Skeptic and Judge panels contain bundled illustrative reasoning traces. They are not authenticated model-inference transcripts. The pipeline animation does not launch three live agents.
+
+## Ablation and phase-plane workbench
+
+A second studio section compares four verification policies (no gate, unit tests only, seeded property fuzz, and the combined formal gate) against a fixed catalog of 12 mutants spanning all three domains: token-bucket float drift, missing clamps, strict boundary and overflow; quorum safety-only, liveness-only, wrong BFT threshold and off-by-one intersection; battery greedy, no-degradation, truncated horizon and SoC clipping. Each caught mutant produces a concrete replayable witness; the intentionally weaker policies leave some mutants uncaught while the combined gate catches all 12.
+
+The quorum phase-plane solver is bounded (`1 <= N <= 64`) and computes exact safety (`2q - N > f`), liveness (`q <= N - f`) and BFT feasibility (`N >= 3f + 1`) for each cell, with a constructive disjoint-quorum split-brain partition whenever safety fails.
+
+The certificate bar exports one cached canonical SHA-256 digest of the lab state so the on-page digest, the JSON export, the CSV provenance header and the Markdown footer match byte for byte. A tamper-verification check recomputes the digest over the exported payload. The `#mw=` link is a compact base64url state codec that fails closed on malformed or hostile hashes and round-trips every lab control.
+
+These are deterministic mathematical checks over a fixed mutant catalog and bounded parameter ranges. The certificate covers the listed cells only. It is not a proof of the whole application, and it contains no inference output.
 
 ## Developer-agent boundary
 
