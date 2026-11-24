@@ -43,18 +43,25 @@
   function utf8String(bytes) {
     var out = "";
     for (var i = 0; i < bytes.length; i++) {
-      var b = bytes[i];
-      if (b < 0x80) {
-        out += String.fromCharCode(b);
-      } else if (b < 0xE0) {
-        out += String.fromCharCode(((b & 0x1F) << 6) | (bytes[++i] & 0x3F));
-      } else if (b < 0xF0) {
-        out += String.fromCharCode(((b & 0x0F) << 12) | ((bytes[++i] & 0x3F) << 6) | (bytes[++i] & 0x3F));
-      } else {
-        var cp = ((b & 0x07) << 18) | ((bytes[++i] & 0x3F) << 12) |
-          ((bytes[++i] & 0x3F) << 6) | (bytes[++i] & 0x3F);
+      var b = bytes[i], cp = 0, need = 0, min = 0;
+      if (b < 0x80) { cp = b; need = 0; }
+      else if (b >= 0xC2 && b < 0xE0) { cp = b & 0x1F; need = 1; min = 0x80; }
+      else if (b >= 0xE0 && b < 0xF0) { cp = b & 0x0F; need = 2; min = 0x800; }
+      else if (b >= 0xF0 && b < 0xF5) { cp = b & 0x07; need = 3; min = 0x10000; }
+      else return null;
+      if (i + need >= bytes.length) return null;
+      for (var k = 1; k <= need; k++) {
+        var cb = bytes[i + k];
+        if ((cb & 0xC0) !== 0x80) return null;
+        cp = (cp << 6) | (cb & 0x3F);
+      }
+      if (cp < min || cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF)) return null;
+      i += need;
+      if (cp > 0xFFFF) {
         cp -= 0x10000;
         out += String.fromCharCode(0xD800 + (cp >> 10), 0xDC00 + (cp & 0x3FF));
+      } else {
+        out += String.fromCharCode(cp);
       }
     }
     return out;
@@ -79,6 +86,7 @@
       B64REV = {};
       for (var i = 0; i < B64.length; i++) B64REV[B64[i]] = i;
     }
+    if (typeof str !== "string" || str.length === 0 || str.length % 4 === 1) return null;
     var out = [], acc = 0, bits = 0;
     for (var j = 0; j < str.length; j++) {
       var v = B64REV[str[j]];
@@ -90,6 +98,9 @@
         out.push((acc >> bits) & 0xFF);
       }
     }
+    var rem = str.length % 4;
+    var last = B64REV[str[str.length - 1]];
+    if ((rem === 2 && (last & 0x0F) !== 0) || (rem === 3 && (last & 0x03) !== 0)) return null;
     return out;
   }
 
@@ -1037,7 +1048,10 @@
     if (!Number.isSafeInteger(N) || N < 1 || N > N_MAX) {
       throw new RangeError("phasePlane requires integer 1 <= N <= " + N_MAX);
     }
-    var fLim = fMax === undefined ? Math.floor(N / 2) : Math.min(fMax, N - 1);
+    if (fMax !== undefined && (!Number.isSafeInteger(fMax) || fMax < 0 || fMax > N - 1)) {
+      throw new RangeError("phasePlane fMax requires integer 0 <= f <= N - 1");
+    }
+    var fLim = fMax === undefined ? Math.floor(N / 2) : fMax;
     var rows = [];
     for (var q = N; q >= 1; q--) {
       var row = [];

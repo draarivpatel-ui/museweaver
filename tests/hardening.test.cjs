@@ -472,7 +472,7 @@ test("app.js injects no inline handlers through markup strings", () => {
 
 test("single h1, landmarks and a working skip link exist", () => {
   assert.equal((indexHtml.match(/<h1\b/g) || []).length, 1);
-  for (const tag of ["<header", "<main id=\"main\">", "<footer"]) {
+  for (const tag of ["<header", "<main id=\"main\" tabindex=\"-1\">", "<footer"]) {
     assert.ok(indexHtml.includes(tag), tag);
   }
   assert.match(indexHtml, /class="skip-link" href="#main"/);
