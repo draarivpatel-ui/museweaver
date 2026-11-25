@@ -12,6 +12,7 @@ const stylesCss = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 const appJs = fs.readFileSync(path.join(root, "js/app.js"), "utf8");
 const verifierSrc = fs.readFileSync(path.join(root, "js/verifier.js"), "utf8");
 const tracesSrc = fs.readFileSync(path.join(root, "js/captured-traces.js"), "utf8");
+const labUiSrc = fs.readFileSync(path.join(root, "js/lab-ui.js"), "utf8");
 const sandboxHtml = fs.readFileSync(path.join(root, "js/execution-sandbox.html"), "utf8");
 
 const vctx = vm.createContext({ performance, console });
@@ -550,10 +551,22 @@ test("styles provide a visible focus state, hidden text and a skip link", () => 
   assert.match(stylesCss, /:focus-visible\s*\{/);
   assert.match(stylesCss, /\.visually-hidden\s*\{/);
   assert.match(stylesCss, /\.skip-link\b/);
+  assert.match(stylesCss, /\.skip-link\s*\{[\s\S]*?clip-path:\s*inset\(50%\)/);
+  assert.match(stylesCss, /\.skip-link\s*\{[\s\S]*?padding:\s*0;/);
+  assert.equal(stylesCss.includes("left: -9999px"), false);
+  assert.equal(`${indexHtml}\n${stylesCss}\n${appJs}\n${labUiSrc}`.includes("#64748B"), false);
+  assert.match(stylesCss, /--blue-strong:\s*#2563EB/);
+  assert.match(stylesCss, /--blue-text:\s*#60A5FA/);
+  assert.match(stylesCss, /--text-dim:\s*#7D8DA1/);
+  assert.match(stylesCss, /--crimson:\s*#F87171/);
+  assert.match(stylesCss, /\.reasoning-text\.collapsed\s*\{[\s\S]*?visibility:\s*hidden/);
+  assert.match(stylesCss, /\.inv-formula\s*\{[^}]*overflow-wrap:\s*anywhere/);
 });
 
 test("styles honor reduced motion and ban smooth scrolling everywhere", () => {
   assert.match(stylesCss, /@media \(prefers-reduced-motion: reduce\)/);
+  const reduceIndex = stylesCss.indexOf("@media (prefers-reduced-motion: reduce)");
+  assert.ok(reduceIndex > stylesCss.lastIndexOf("@media (max-width: 720px)"));
   const shipped = `${indexHtml}\n${stylesCss}\n${appJs}\n${verifierSrc}\n${tracesSrc}`;
   assert.equal(/scroll-behavior\s*:\s*smooth/i.test(shipped), false);
   assert.equal(/scrollIntoView\s*\([^)]*smooth/i.test(shipped), false);

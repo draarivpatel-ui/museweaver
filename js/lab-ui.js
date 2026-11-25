@@ -211,11 +211,11 @@
     svg += '<text x="' + (PLANE.padL + (fMax + 1) * PLANE.cell / 2) + '" y="14" text-anchor="middle" fill="#94A3B8" font-size="10">Byzantine faults f</text>';
     svg += '<text x="12" y="' + (PLANE.padT + n * PLANE.cell / 2) + '" text-anchor="middle" fill="#94A3B8" font-size="10" transform="rotate(-90 12 ' + (PLANE.padT + n * PLANE.cell / 2) + ')">quorum size q</text>';
     for (var f = 0; f <= fMax; f++) {
-      svg += '<text x="' + (PLANE.padL + f * PLANE.cell + PLANE.cell / 2) + '" y="' + (PLANE.padT - 6) + '" text-anchor="middle" fill="#64748B" font-size="9">' + f + "</text>";
+      svg += '<text x="' + (PLANE.padL + f * PLANE.cell + PLANE.cell / 2) + '" y="' + (PLANE.padT - 6) + '" text-anchor="middle" fill="#7D8DA1" font-size="9">' + f + "</text>";
     }
     for (var q = n; q >= 1; q--) {
       var y = PLANE.padT + (n - q) * PLANE.cell;
-      svg += '<text x="' + (PLANE.padL - 8) + '" y="' + (y + PLANE.cell / 2 + 3) + '" text-anchor="end" fill="#64748B" font-size="9">' + q + "</text>";
+      svg += '<text x="' + (PLANE.padL - 8) + '" y="' + (y + PLANE.cell / 2 + 3) + '" text-anchor="end" fill="#7D8DA1" font-size="9">' + q + "</text>";
       for (var f2 = 0; f2 <= fMax; f2++) {
         var cell = L.phaseCell(n, f2, q);
         var cls = cell.classification;
