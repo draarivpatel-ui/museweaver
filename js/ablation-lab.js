@@ -1101,8 +1101,9 @@
   }
 
   function csvCell(value) {
+    var numeric = typeof value === 'number' && Number.isFinite(value);
     var s = value === null || value === undefined ? "" : String(value);
-    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    if (!numeric && /^[\s\p{Cf}\p{Cc}]*[=+\-@\t\r]/u.test(s)) s = "'" + s;
     if (/[",\n\r]/.test(s) || s !== s.trim()) s = '"' + s.replace(/"/g, '""') + '"';
     return s;
   }
