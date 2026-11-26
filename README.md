@@ -18,7 +18,7 @@ python3 -m venv .venv
 npm test
 ```
 
-`npm test` runs 588 Node regression tests covering the verifier, the sandbox, the ablation lab, page markup and shipped-content hygiene.
+`npm test` runs 589 Node regression tests covering the verifier, the sandbox, the ablation lab, page markup and shipped-content hygiene.
 
 Browser regression tests use a throwaway headless Chromium profile. On Linux, install the test browser with `.venv/bin/python -m playwright install --with-deps chromium`.
 

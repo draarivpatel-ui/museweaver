@@ -1343,3 +1343,28 @@ code, pre, .mono {
     scroll-behavior: auto !important;
   }
 }
+
+@media print {
+  @page { margin: 0.5in; }
+  :root {
+    --obsidian: #fff; --surface: #fff; --surface-2: #fff;
+    --border: #999; --border-light: #777; --text: #111;
+    --text-mid: #333; --text-dim: #444;
+  }
+  body { background: #fff !important; color: #111 !important; }
+  .skip-link, .scenario-bar, .custom-composer, .api-modal, .api-modal-card,
+  button, input, select, textarea { display: none !important; }
+  .top-header { position: static !important; background: #fff !important; color: #111 !important; }
+  .studio-col, .col-header, .col-body, .reasoning-block, .code-block,
+  .invariants-block, .test-cases-block, .execution-block, .compare-card,
+  .dag-container, .lab-section {
+    background: #fff !important; color: #111 !important;
+    border-color: #999 !important; box-shadow: none !important;
+  }
+  .reasoning-block, .code-block, .invariants-block, .test-cases-block,
+  .execution-block, .compare-card, .dag-container { break-inside: avoid; }
+  .col-body, .reasoning-text, .execution-logs, #lab-matrix, .lab-pre,
+  .lab-selftest-list { max-height: none !important; overflow: visible !important; }
+  pre, .lab-pre { color: #111 !important; background: #fff !important; white-space: pre-wrap !important; overflow-wrap: anywhere !important; }
+  canvas, svg { max-width: 100% !important; height: auto !important; }
+}
