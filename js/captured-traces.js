@@ -448,8 +448,6 @@ class BatteryArbitrage {
 // ============================================================
 const API_CONFIG = {
   basetenUrl: "https://inference.baseten.co/v1/chat/completions",
-  localUrl: "http://localhost:20128/v1/chat/completions",
-  model: "baseten/meta-models/muse-spark-open-1026",
   directModel: "meta-models/muse-spark-open-1026"
 };
 
