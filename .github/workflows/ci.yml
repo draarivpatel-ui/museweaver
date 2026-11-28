@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install Python dependencies
-        run: python -m pip install -r requirements-dev.txt
+        run: python -m pip install --require-hashes -r requirements-dev.txt
       - name: Install Chromium
         run: python -m playwright install --with-deps chromium
       - name: Run Node test suite
